@@ -17,7 +17,6 @@ jobs:
 
       - name: Install and Build 🔧
         run: |
-          cd ome2024-ngff-challenge
           npm install
           npm run build
       - name: Deploy 🚀
