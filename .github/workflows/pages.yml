@@ -24,5 +24,5 @@ jobs:
         with:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH: gh-pages
-          FOLDER: ome2024-ngff-challenge/dist
+          FOLDER: dist
           CLEAN: true
