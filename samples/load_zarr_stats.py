@@ -9,10 +9,6 @@ from pathlib import Path
 
 import requests
 
-# Usage: python load_zarr_stats.py <csv_file>
-
-# E.g. $ for idr in 04 10 11 12 15 26 33 35 36 54; do python load_zarr_stats.py idr00$(echo $idr)_samples.csv; done
-
 
 def load_json(url):
     try:

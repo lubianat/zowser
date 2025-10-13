@@ -163,194 +163,189 @@
   }
 </script>
 
+<PreviewPopup />
 
-  <PreviewPopup />
+<main style="--form-select-bg-img: url('{form_select_bg_img}')">
+  <!-- <h1 class="title">OME 2024 NGFF Challenge</h1> -->
 
-  <main style="--form-select-bg-img: url('{form_select_bg_img}')">
-    <!-- <h1 class="title">OME 2024 NGFF Challenge</h1> -->
+  <div class="summary">
+    <h3 style="text-align:center">
+      {#if csvUrl == SAMPLES_HOME}
+        <strong style="font-weight:600">{filesizeformat(totalBytes)}</strong>
+        of public bioimage data in Zarr v3 and sharding, with distributed hosting.
+      {:else}
+        <div style="font-size: 90%">
+          Showing Collection:
+          <a href={csvUrl}>{csvUrl.split("/").pop()}</a>
+          {#if csvUrl != SAMPLES_HOME}
+            ({filesizeformat(totalBytes)})
+            <span style="color:grey">&nbsp | &nbsp</span>
+            <a href={window.location.origin + window.location.pathname}
+              >Show all collections</a
+            >
+          {/if}
+        </div>
+      {/if}
+    </h3>
 
-    <div class="summary">
-      <h3 style="text-align:center">
-        {#if csvUrl == SAMPLES_HOME}
-          <strong style="font-weight:600">{filesizeformat(totalBytes)}</strong>
-          of public bioimage data in the next major version of OME-Zarr,
-          including Zarr v3 and sharding, with distributed hosting.
-        {:else}
-          <div style="font-size: 90%">
-            Showing Collection:
-            <a href="{csvUrl}">{csvUrl.split("/").pop()}</a>
-            {#if csvUrl != SAMPLES_HOME}
-              ({filesizeformat(totalBytes)})
-              <span style="color:grey">&nbsp | &nbsp</span>
-              <a href="{window.location.origin + window.location.pathname}">Show all collections</a>
-            {/if}
-          </div>
-        {/if}
-      </h3>
-
-      <div class="textInputWrapper">
-        <input
-          bind:value={textFilter}
-          on:input={filterText}
-          placeholder="Filter by Name or Description"
-          name="textFilter"
-        />
-        <button
-          title="Clear Filter"
-          style="visibility: {textFilter !== '' ? 'visible' : 'hidden'}"
-          on:click={filterText}
-          >&times;
-        </button>
-      </div>
-
-      <div class="sources">
-        {#each zarrSources as source}
-          <SourcePanel {source} handleFilter={filterSource} />
-        {/each}
-      </div>
+    <div class="textInputWrapper">
+      <input
+        bind:value={textFilter}
+        on:input={filterText}
+        placeholder="Filter by Name or Description"
+        name="textFilter"
+      />
+      <button
+        title="Clear Filter"
+        style="visibility: {textFilter !== '' ? 'visible' : 'hidden'}"
+        on:click={filterText}
+        >&times;
+      </button>
     </div>
 
-    <!-- start left side-bar (moves to top for mobile) -->
-    <div class="sidebarContainer">
-      <div class="sidebar">
-        <div class="filters">
-          <div style="white-space: nowrap;">Filter by:</div>
-          {#if sourceFilter !== "" && ngffTable.getCsvSourceList(sourceFilter).length > 0}
-            <div class="selectWrapper">
-              <select
-                name="collection"
-                bind:value={collectionFilter}
-                on:change={filterCollection}
-              >
-                <option value="">Collection</option>
-                {#each ngffTable.getCsvSourceList(sourceFilter) as childSource}
-                  <option value={childSource.url}>
-                    {childSource.source == sourceFilter
-                      ? formatCsv(childSource.url)
-                      : childSource.source} ({childSource.image_count})
-                  </option>
-                {/each}
-              </select>
-              <div>
-                <button
-                  title="Clear Filter"
-                  style="visibility: {collectionFilter !== ''
-                    ? 'visible'
-                    : 'hidden'}"
-                  on:click={filterCollection}
-                  >&times;
-                </button>
-              </div>
-            </div>
-          {/if}
+    <div class="sources">
+      {#each zarrSources as source}
+        <SourcePanel {source} handleFilter={filterSource} />
+      {/each}
+    </div>
+  </div>
 
-          <div class="selectWrapper">
-            <select bind:value={dimensionFilter} on:change={filterDimensions}>
-              <option value=""
-                >{dimensionFilter !== ""
-                  ? "All Dimensions"
-                  : "Dimension Count"}</option
-              >
-              <hr />
-              <option value="2">2D</option>
-              <option value="3">3D</option>
-              <option value="4">4D</option>
-              <option value="5">5D</option>
-            </select>
-            <div>
-              <button
-                title="Clear Filter"
-                style="visibility: {dimensionFilter !== ''
-                  ? 'visible'
-                  : 'hidden'}"
-                on:click={filterDimensions}
-                >&times;
-              </button>
-            </div>
-          </div>
-
-          <div class="selectWrapper">
-            <select bind:value={organismFilter} on:change={filterOrganism}>
-              <option value=""
-                >{organismFilter == "" ? "Organism" : "All Organisms"}</option
-              >
-              <hr />
-              {#each Object.keys(organismIdsByName).sort() as name}
-                <option value={organismIdsByName[name]}>{name}</option>
-              {/each}
-            </select>
-            <div>
-              <button
-                title="Clear Filter"
-                style="visibility: {organismFilter !== ''
-                  ? 'visible'
-                  : 'hidden'}"
-                on:click={filterOrganism}
-                >&times;
-              </button>
-            </div>
-          </div>
-
+  <!-- start left side-bar (moves to top for mobile) -->
+  <div class="sidebarContainer">
+    <div class="sidebar">
+      <div class="filters">
+        <div style="white-space: nowrap;">Filter by:</div>
+        {#if sourceFilter !== "" && ngffTable.getCsvSourceList(sourceFilter).length > 0}
           <div class="selectWrapper">
             <select
-              bind:value={imagingModalityFilter}
-              on:change={filterImagingModality}
+              name="collection"
+              bind:value={collectionFilter}
+              on:change={filterCollection}
             >
-              <option value=""
-                >{imagingModalityFilter == ""
-                  ? "Imaging Modality"
-                  : "All Modalities"}</option
-              >
-              <hr />
-              {#each Object.keys(imagingModalityIdsByName).sort() as name (name)}
-                <option value={imagingModalityIdsByName[name]}>{name}</option>
+              <option value="">Collection</option>
+              {#each ngffTable.getCsvSourceList(sourceFilter) as childSource}
+                <option value={childSource.url}>
+                  {childSource.source == sourceFilter
+                    ? formatCsv(childSource.url)
+                    : childSource.source} ({childSource.image_count})
+                </option>
               {/each}
             </select>
             <div>
               <button
                 title="Clear Filter"
-                style="visibility: {imagingModalityFilter !== ''
+                style="visibility: {collectionFilter !== ''
                   ? 'visible'
                   : 'hidden'}"
-                on:click={filterImagingModality}
+                on:click={filterCollection}
                 >&times;
               </button>
             </div>
           </div>
+        {/if}
 
-          <div class="clear"></div>
-
-          <div>Sort by:</div>
-          <div class="selectWrapper">
-            <select
-              on:change={handleSort}
+        <div class="selectWrapper">
+          <select bind:value={dimensionFilter} on:change={filterDimensions}>
+            <option value=""
+              >{dimensionFilter !== ""
+                ? "All Dimensions"
+                : "Dimension Count"}</option
             >
-              <option value="">--</option
-              >
-              <hr />
-              {#each ["x", "y", "z", "c", "t"] as dim}
-                <option value="size_{dim}">Size: {dim.toUpperCase()}</option>
-              {/each}
-              <hr />
-              <option value="written">Data Size (bytes)</option>
-              <option value="chunk_pixels">Chunk Size (pixels)</option>
-              <option value="shard_pixels">Shard Size (pixels)</option>
-            </select>
-            <div>
-              <ColumnSort
-                toggleAscending={toggleSortAscending}
-                sortAscending={sortAscending} />
-            </div>
+            <hr />
+            <option value="2">2D</option>
+            <option value="3">3D</option>
+            <option value="4">4D</option>
+            <option value="5">5D</option>
+          </select>
+          <div>
+            <button
+              title="Clear Filter"
+              style="visibility: {dimensionFilter !== ''
+                ? 'visible'
+                : 'hidden'}"
+              on:click={filterDimensions}
+              >&times;
+            </button>
+          </div>
+        </div>
+
+        <div class="selectWrapper">
+          <select bind:value={organismFilter} on:change={filterOrganism}>
+            <option value=""
+              >{organismFilter == "" ? "Organism" : "All Organisms"}</option
+            >
+            <hr />
+            {#each Object.keys(organismIdsByName).sort() as name}
+              <option value={organismIdsByName[name]}>{name}</option>
+            {/each}
+          </select>
+          <div>
+            <button
+              title="Clear Filter"
+              style="visibility: {organismFilter !== '' ? 'visible' : 'hidden'}"
+              on:click={filterOrganism}
+              >&times;
+            </button>
+          </div>
+        </div>
+
+        <div class="selectWrapper">
+          <select
+            bind:value={imagingModalityFilter}
+            on:change={filterImagingModality}
+          >
+            <option value=""
+              >{imagingModalityFilter == ""
+                ? "Imaging Modality"
+                : "All Modalities"}</option
+            >
+            <hr />
+            {#each Object.keys(imagingModalityIdsByName).sort() as name (name)}
+              <option value={imagingModalityIdsByName[name]}>{name}</option>
+            {/each}
+          </select>
+          <div>
+            <button
+              title="Clear Filter"
+              style="visibility: {imagingModalityFilter !== ''
+                ? 'visible'
+                : 'hidden'}"
+              on:click={filterImagingModality}
+              >&times;
+            </button>
+          </div>
+        </div>
+
+        <div class="clear"></div>
+
+        <div>Sort by:</div>
+        <div class="selectWrapper">
+          <select on:change={handleSort}>
+            <option value="">--</option>
+            <hr />
+            {#each ["x", "y", "z", "c", "t"] as dim}
+              <option value="size_{dim}">Size: {dim.toUpperCase()}</option>
+            {/each}
+            <hr />
+            <option value="written">Data Size (bytes)</option>
+            <option value="chunk_pixels">Chunk Size (pixels)</option>
+            <option value="shard_pixels">Shard Size (pixels)</option>
+          </select>
+          <div>
+            <ColumnSort toggleAscending={toggleSortAscending} {sortAscending} />
           </div>
         </div>
       </div>
-
-      <div class="results">
-        <h3 style="margin-left: 15px">Showing {tableRows.length} out of {totalZarrs} images</h3>
-        <ImageList {tableRows} {textFilter} {sortedBy} />
-      </div>
     </div>
-  </main>
+
+    <div class="results">
+      <h3 style="margin-left: 15px">
+        Showing {tableRows.length} out of {totalZarrs} images
+      </h3>
+      <ImageList {tableRows} {textFilter} {sortedBy} />
+    </div>
+  </div>
+</main>
 
 <style>
   .sidebarContainer {
@@ -426,7 +421,8 @@
     flex: 0 0 20px;
     cursor: pointer;
   }
-  .selectWrapper button, .textInputWrapper button {
+  .selectWrapper button,
+  .textInputWrapper button {
     background: transparent;
     border: none;
     padding: 2px;

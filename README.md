@@ -21,6 +21,18 @@ It may integrate directly with BioFile Finder, as put by Will Moore, it really h
 
 E.g. https://bff.allencell.org/app?c=Dataset+Name%3A0.25%2CImage+Name%3A0.25%2CCharacteristics+%5BOrganism%5D%3A0.25%2CTerm+Source+1+REF%3A0.25&source=%7B%22name%22%3A%22idr0170-biofile-finder.csv+%2806%2F08%2F2025+10%3A33%3A43%29%22%2C%22type%22%3A%22csv%22%2C%22uri%22%3A%22https%3A%2F%2Fraw.githubusercontent.com%2FIDR%2Fidr0170-rose-mibitof%2Frefs%2Fheads%2Fmain%2FexperimentA%2Fidr0170-biofile-finder.csv%22%7D
 
+## Code 
+
+This is a Svelte.js app for loading CSV file(s) that list NGFF samples and
+displaying a summary.
+
+Development: cd into this directory, then...
+
+```
+$ npm install
+$ npm run dev
+```
+
 
 
 ## Challenge overview

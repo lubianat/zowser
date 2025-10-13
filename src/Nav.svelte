@@ -3,21 +3,26 @@
   import githubLogo from "/github-mark-white.svg";
   let base = import.meta.env.BASE_URL;
 
-  console.log('Nav base', base);
+  console.log("Nav base", base);
 </script>
 
 <!-- base element used to define relative links -->
-<base href="{base}" />
+<base href={base} />
 
 <nav>
-  <a class="logolink" href="{base}"><img alt="OME Logo" src={omeMainNav} /></a>
-  <a href="{base}"><h2>2024 NGFF Challenge</h2></a>
+  <a class="logolink" href={base}><img alt="OME Logo" src={omeMainNav} /></a>
+  <a href={base}><h2>Zowser — an OME-Zarr browser</h2></a>
   <div style="flex: 1"></div>
 
   <a href="about/"> About </a>
-  <a class="github" title="Open in GitHub" target="_blank" href="https://github.com/ome/ome2024-ngff-challenge/">
+  <!-- <a
+    class="github"
+    title="Open in GitHub"
+    target="_blank"
+    href="https://github.com/ome/ome2024-ngff-challenge/"
+  >
     <img alt="GitHub Logo" src={githubLogo} />
-  </a>
+  </a> -->
 </nav>
 
 <style>
@@ -47,10 +52,12 @@
     text-decoration: none;
     display: block;
   }
-  .logolink, img {
+  .logolink,
+  img {
     height: 30px;
   }
-  .github img, .github {
+  .github img,
+  .github {
     height: 20px;
   }
   .github {
