@@ -3,13 +3,26 @@
   import Header from "./Header.svelte";
   import { ngffTable } from "./tableStore";
   import Thumbnail from "./Thumbnail.svelte";
-  import { loadCsv } from "./util";
+  import { SAMPLES_HOME, loadCsv } from "./util";
   import idrLogo from "/idr-mark.svg";
 
   export let csvUrl;
 
   let tableRows = [];
   let maxThumbSize = 512;
+
+  // Map of source to favicon domain
+  let faviconDomains = {
+    IDR: "https://idr.openmicroscopy.org",
+    Webknossos: "https://webknossos.org",
+    JAX: "http://jax.org",
+    "BioImage Archive": "https://www.ebi.ac.uk",
+    Crick: "https://www.crick.ac.uk/",
+    // Several sources from NFDI4Bioimage
+    "University of Muenster / NFDI4Bioimage": "https://nfdi4bioimage.de/",
+    Göttingen: "https://nfdi4bioimage.de/",
+    Jülich: "https://nfdi4bioimage.de/",
+  };
 
   let unsubscribe = ngffTable.subscribe((rows) => {
     tableRows = rows;
@@ -30,12 +43,24 @@
   function handleThumbClick(csv_url) {
     // If we're loading any page other than HOME page,
     // we need to unsubscribe from the table store so the gallery doesn't update
-    console.log("handleThumbClick", csv_url, "");
-    unsubscribe();
-
+    console.log("handleThumbClick", csv_url, SAMPLES_HOME);
+    if (csv_url !== SAMPLES_HOME) {
+      unsubscribe();
+    }
     ngffTable.emptyTable();
     csvUrl = csv_url;
     loadCsv(csvUrl, ngffTable);
+  }
+
+  function getSourceIcon(source) {
+    if (source === "IDR") {
+      return idrLogo;
+    }
+    let domain = faviconDomains[source];
+    if (!domain) {
+      return null;
+    }
+    return `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${domain}&size=24`;
   }
 </script>
 
@@ -55,6 +80,13 @@
               source={row.image_url}
               max_size={maxThumbSize}
             ></Thumbnail>
+          {/if}
+          {#if getSourceIcon(row.source)}
+            <img
+              alt="Icon from {row.source}"
+              class="source_icon"
+              src={getSourceIcon(row.source)}
+            />
           {/if}
           {#if row.source}
             <span class="source">{row.source}:</span>

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "precache:thumbs": "node src/precache_thumbs.js"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^3.1.1",
@@ -14,6 +15,7 @@
     "vite": "^5.4.1"
   },
   "dependencies": {
+    "canvas": "^3.2.0",
     "papaparse": "^5.4.1",
     "svelte-tiny-virtual-list": "^2.1.2",
     "zarrita": "^0.4.0-next.15"

@@ -1,38 +1,8 @@
 import { writable, get } from "svelte/store";
 import { organismStore, imagingModalityStore } from "./ontologyStore";
-import { range, getRandomInt } from "./util.js";
-const BATCH_SIZE = 5;
+import { loadMultiscales } from "./thumbnailGenerator.js";
+export { loadMultiscales };
 
-export async function loadMultiscales(url, signal) {
-  // return the json data that includes multiscales
-  let zarrData = await fetch(`${url}/zarr.json`, { signal })
-    .then((response) => {
-      if (response.status === 404) {
-        throw new Error(`${url}/zarr.json not found`);
-      }
-      return response.json();
-    })
-    .catch((error) => {
-      return [undefined, url];
-    });
-
-  const attributes = zarrData?.attributes?.ome;
-  if (!attributes) {
-    return [undefined, url];
-  }
-  if (attributes.multiscales) {
-    return [attributes, url];
-  } else if (attributes.plate) {
-    let well = attributes.plate.wells[0];
-    // assume the first image in the well is under "/0"
-    let imgPath = `${url}/${well.path}/0`;
-    let [msData, msUrl] = await loadMultiscales(imgPath);
-    return [msData, msUrl, attributes.plate];
-  } else if (attributes["bioformats2raw.layout"]) {
-    let bf2rawUrl = `${url}/0`;
-    return await loadMultiscales(bf2rawUrl);
-  }
-}
 
 class NgffTable {
   constructor(sortBy = "index", sortAscending = true) {
