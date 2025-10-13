@@ -50,48 +50,6 @@ class NgffTable {
     this.csvFiles = [];
   }
 
-  getCsvSourceList(sourceName) {
-    let child;
-    if (!sourceName) {
-      child = this.csvFiles[0];
-    } else {
-      for (let csv of this.csvFiles) {
-        if (csv.source === sourceName) {
-          child = csv;
-          break;
-        }
-        for (let childCsv of csv.child_csv) {
-          if (childCsv.source === sourceName) {
-            child = childCsv;
-            break;
-          }
-          for (let grandchildCsv of childCsv.child_csv) {
-            if (grandchildCsv.source === sourceName) {
-              child = grandchildCsv;
-              break;
-            }
-          }
-        }
-      }
-    }
-    if (!child) {
-      return [];
-    }
-    // lets summarise the image_count for each source
-    let children = child.child_csv.map((src) => {
-      let image_count = src.image_count || 0;
-      let plate_count = src.plate_count || 0;
-      let bytes = src.bytes || 0;
-      for (let grandchild of src.child_csv) {
-        // not recursive but OK for now
-        image_count += grandchild.image_count || 0;
-        plate_count += grandchild.plate_count || 0;
-        bytes += grandchild.bytes || 0;
-      }
-      return { ...src, image_count, plate_count, bytes };
-    });
-    return children;
-  }
 
   addCsv(csvUrl, childCsvRows, image_count, plate_count, bytes) {
     // childCsvRows is [{source: "uni2", url: "http://...csv"}]
@@ -138,13 +96,6 @@ class NgffTable {
   addRows(rows) {
     // Each row is a dict {"url": "http...zarr"}
     rows = rows.map((row, index) => {
-      // Validating csv files don't contain whitespaces
-      // Object.entries(row).forEach(([key, value]) => {
-      //   if (value?.startsWith && (value.startsWith(" ") || value?.endsWith(" ")) || (key && key.startsWith(" ") || key.endsWith(" "))) {
-      //     console.log("whitespace", row.url, key, value);
-      //   }
-      // });
-
       if (row.written) {
         row.written = parseFloat(row.written);
       }
@@ -255,50 +206,6 @@ class NgffTable {
       load_failed,
       loaded, // always true - just means we tried to load the data
     });
-  }
-
-  // async loadRocrateJson(zarrUrl) {
-  //   await fetch(`${zarrUrl}/ro-crate-metadata.json`)
-  //     .then((response) => {
-  //       console.log("loadMultiscales response", response.status);
-  //       if (response.status === 404) {
-  //         throw new Error(`${zarrUrl}/ro-crate-metadata.json not found`);
-  //       }
-  //       return response.json();
-  //     })
-  //     .then((jsonData) => {
-  //       // parse ro-crate json...
-  //       let biosample = jsonData["@graph"].find(
-  //         (item) => item["@type"] === "biosample",
-  //       );
-  //       let organism_id = biosample?.organism_classification?.["@id"];
-  //       let image_acquisition = jsonData["@graph"].find(
-  //         (item) => item["@type"] === "image_acquisition",
-  //       );
-  //       let fbbi_id = image_acquisition?.fbbi_id?.["@id"];
-
-  //       // I guess we could store more JSON data in the table, but let's keep columns to strings/IDs for now...
-  //       this.populateRow(zarrUrl, {
-  //         organism_id,
-  //         fbbi_id,
-  //         rocrate_loaded: true,
-  //       });
-  //     })
-  //     .catch((error) => {
-  //       console.log("Failed to load ro-crate-metadata.json", error);
-  //     });
-  // }
-
-  async loadRocrateJsonAllRows() {
-    let rows = get(this.store);
-    for (let i = 0; i < rows.length; i = i + BATCH_SIZE) {
-      let promises = range(i, Math.min(i + BATCH_SIZE, rows.length)).map(
-        (j) => {
-          return this.loadRocrateJson(rows[j].url);
-        },
-      );
-      await Promise.all(promises);
-    }
   }
 
   compareRows(a, b, isNumber = false) {

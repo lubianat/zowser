@@ -9,7 +9,6 @@
 
   import { SAMPLES_HOME, filesizeformat, loadCsv } from "./util";
   import Nav from "./Nav.svelte";
-  import SourcePanel from "./SourcePanel.svelte";
 
   // hardcode to local samples
   let csvUrl = zarr_samples;
@@ -34,7 +33,6 @@
   ngffTable.subscribe((rows) => {
     tableRows = filterRows(rows);
     // NB: don't use filtered rows for sources
-    zarrMetadataList = ngffTable.getCsvSourceList();
     totalZarrs = rows.length;
     totalBytes = rows.reduce((acc, row) => {
       return acc + parseInt(row["written"]) || 0;
@@ -86,17 +84,6 @@
     if (dimensionFilter !== "") {
       rows = rows.filter((row) => {
         return row.dim_count == dimensionFilter;
-      });
-    }
-    if (collectionFilter !== "") {
-      rows = rows.filter((row) => {
-        return row.csv == collectionFilter;
-      });
-    } else if (sourceFilter !== "") {
-      let childSrcs = ngffTable.getCsvSourceList(sourceFilter);
-      let allSources = [sourceFilter, ...childSrcs.map((src) => src.source)];
-      rows = rows.filter((row) => {
-        return allSources.includes(row.source);
       });
     }
     if (organismFilter !== "") {
@@ -193,12 +180,6 @@
         >&times;
       </button>
     </div>
-
-    <div class="sources">
-      {#each zarrMetadataList as source}
-        <SourcePanel {source} handleFilter={filterSource} />
-      {/each}
-    </div>
   </div>
 
   <!-- start left side-bar (moves to top for mobile) -->
@@ -206,34 +187,6 @@
     <div class="sidebar">
       <div class="filters">
         <div style="white-space: nowrap;">Filter by:</div>
-        {#if sourceFilter !== "" && ngffTable.getCsvSourceList(sourceFilter).length > 0}
-          <div class="selectWrapper">
-            <select
-              name="collection"
-              bind:value={collectionFilter}
-              on:change={filterCollection}
-            >
-              <option value="">Collection</option>
-              {#each ngffTable.getCsvSourceList(sourceFilter) as childSource}
-                <option value={childSource.url}>
-                  {childSource.source == sourceFilter
-                    ? formatCsv(childSource.url)
-                    : childSource.source} ({childSource.image_count})
-                </option>
-              {/each}
-            </select>
-            <div>
-              <button
-                title="Clear Filter"
-                style="visibility: {collectionFilter !== ''
-                  ? 'visible'
-                  : 'hidden'}"
-                on:click={filterCollection}
-                >&times;
-              </button>
-            </div>
-          </div>
-        {/if}
 
         <div class="selectWrapper">
           <select bind:value={dimensionFilter} on:change={filterDimensions}>
