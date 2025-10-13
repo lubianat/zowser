@@ -7,7 +7,7 @@
   import form_select_bg_img from "/selectCaret.svg";
   import zarr_samples from "/samples/sample_zarrs_hydrated.csv?url";
 
-  import { SAMPLES_HOME, filesizeformat, loadCsv } from "./util";
+  import { filesizeformat, loadCsv } from "./util";
   import Nav from "./Nav.svelte";
 
   // hardcode to local samples
@@ -152,18 +152,11 @@
 
   <div class="summary">
     <h3 style="text-align:center">
-      {#if csvUrl == SAMPLES_HOME}
-        <strong style="font-weight:600">{filesizeformat(totalBytes)}</strong>
-        of public bioimage data in Zarr v3 and sharding, with distributed hosting.
-      {:else}
-        <div style="font-size: 90%">
-          Showing Collection:
-          <a href={csvUrl}>{csvUrl.split("/").pop()}</a>
-          {#if csvUrl != SAMPLES_HOME}
-            ({filesizeformat(totalBytes)})
-          {/if}
-        </div>
-      {/if}
+      <div style="font-size: 90%">
+        Showing Collection:
+        <a href={csvUrl}>{csvUrl.split("/").pop()}</a>
+        ({filesizeformat(totalBytes)})
+      </div>
     </h3>
 
     <div class="textInputWrapper">

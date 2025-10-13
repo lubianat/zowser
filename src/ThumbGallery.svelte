@@ -3,7 +3,7 @@
   import Header from "./Header.svelte";
   import { ngffTable } from "./tableStore";
   import Thumbnail from "./Thumbnail.svelte";
-  import { SAMPLES_HOME, loadCsv } from "./util";
+  import { loadCsv } from "./util";
   import idrLogo from "/idr-mark.svg";
 
   export let csvUrl;
@@ -30,10 +30,9 @@
   function handleThumbClick(csv_url) {
     // If we're loading any page other than HOME page,
     // we need to unsubscribe from the table store so the gallery doesn't update
-    console.log("handleThumbClick", csv_url, SAMPLES_HOME);
-    if (csv_url !== SAMPLES_HOME) {
-      unsubscribe();
-    }
+    console.log("handleThumbClick", csv_url, "");
+    unsubscribe();
+
     ngffTable.emptyTable();
     csvUrl = csv_url;
     loadCsv(csvUrl, ngffTable);
