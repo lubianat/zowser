@@ -37,13 +37,7 @@ let config = {
 };
 // this will be undefined when deployed from netlify, but is used by gh-pages
 if (process.env.GITHUB_REPOSITORY_OWNER) {
-  if (process.env.GITHUB_REPOSITORY_OWNER == "lubianat") {
-    config.base = `https://tiago.bio.br/zowser/`;
-
-  } else {
-    config.base = `https://${process.env.GITHUB_REPOSITORY_OWNER}.github.io/zowser/`;
-
-  }
+  config.base = `/zowser/`;
 }
 
 // https://vitejs.dev/config/
