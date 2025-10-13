@@ -5,23 +5,18 @@
   import ImageList from "./ImageList.svelte";
   import PreviewPopup from "./PreviewPopup.svelte";
   import form_select_bg_img from "/selectCaret.svg";
+  import zarr_samples from "/samples/sample_zarrs_hydrated.csv?url";
 
   import { SAMPLES_HOME, filesizeformat, loadCsv } from "./util";
   import Nav from "./Nav.svelte";
   import SourcePanel from "./SourcePanel.svelte";
 
-  // check for ?csv=url
-  const params = new URLSearchParams(window.location.search);
-  let csvUrl = params.get("csv");
-  try {
-    new URL(csvUrl);
-  } catch (error) {
-    csvUrl = SAMPLES_HOME;
-  }
+  // hardcode to local samples
+  let csvUrl = zarr_samples;
 
   let tableRows = [];
   // e.g. {"IDR": {"idr0004.csv": {"count": 100}}, "JAX": {}...
-  let zarrSources = [];
+  let zarrMetadataList = [];
   let totalZarrs = 0;
   let totalBytes = 0;
   let showSourceColumn = false;
@@ -39,7 +34,7 @@
   ngffTable.subscribe((rows) => {
     tableRows = filterRows(rows);
     // NB: don't use filtered rows for sources
-    zarrSources = ngffTable.getCsvSourceList();
+    zarrMetadataList = ngffTable.getCsvSourceList();
     totalZarrs = rows.length;
     totalBytes = rows.reduce((acc, row) => {
       return acc + parseInt(row["written"]) || 0;
@@ -179,10 +174,6 @@
           <a href={csvUrl}>{csvUrl.split("/").pop()}</a>
           {#if csvUrl != SAMPLES_HOME}
             ({filesizeformat(totalBytes)})
-            <span style="color:grey">&nbsp | &nbsp</span>
-            <a href={window.location.origin + window.location.pathname}
-              >Show all collections</a
-            >
           {/if}
         </div>
       {/if}
@@ -204,7 +195,7 @@
     </div>
 
     <div class="sources">
-      {#each zarrSources as source}
+      {#each zarrMetadataList as source}
         <SourcePanel {source} handleFilter={filterSource} />
       {/each}
     </div>

@@ -11,19 +11,6 @@
   let tableRows = [];
   let maxThumbSize = 512;
 
-  // Map of source to favicon domain
-  let faviconDomains = {
-    IDR: "https://idr.openmicroscopy.org",
-    Webknossos: "https://webknossos.org",
-    JAX: "http://jax.org",
-    "BioImage Archive": "https://www.ebi.ac.uk",
-    Crick: "https://www.crick.ac.uk/",
-    // Several sources from NFDI4Bioimage
-    "University of Muenster / NFDI4Bioimage": "https://nfdi4bioimage.de/",
-    Göttingen: "https://nfdi4bioimage.de/",
-    Jülich: "https://nfdi4bioimage.de/",
-  };
-
   let unsubscribe = ngffTable.subscribe((rows) => {
     tableRows = rows;
     // If we don't have too many rows, we can afford to show larger thumbnails
@@ -51,17 +38,6 @@
     csvUrl = csv_url;
     loadCsv(csvUrl, ngffTable);
   }
-
-  function getSourceIcon(source) {
-    if (source === "IDR") {
-      return idrLogo;
-    }
-    let domain = faviconDomains[source];
-    if (!domain) {
-      return null;
-    }
-    return `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${domain}&size=24`;
-  }
 </script>
 
 <Header {tableRows}></Header>
@@ -80,13 +56,6 @@
               source={row.image_url}
               max_size={maxThumbSize}
             ></Thumbnail>
-          {/if}
-          {#if getSourceIcon(row.source)}
-            <img
-              alt="Icon from {row.source}"
-              class="source_icon"
-              src={getSourceIcon(row.source)}
-            />
           {/if}
           {#if row.source}
             <span class="source">{row.source}:</span>
@@ -188,11 +157,11 @@
   }
 
   p {
-      padding: 10px;
-      background-color: white;
-      border: lightgrey 1px solid;
-      border-radius: 10px;
-    }
+    padding: 10px;
+    background-color: white;
+    border: lightgrey 1px solid;
+    border-radius: 10px;
+  }
 
   @media (prefers-color-scheme: dark) {
     p {
