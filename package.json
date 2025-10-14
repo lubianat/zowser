@@ -15,6 +15,7 @@
     "vite": "^5.4.1"
   },
   "dependencies": {
+    "@zarrita/indexing": "^0.1.0-next.26",
     "ajv": "^8.11.0",
     "canvas": "^3.2.0",
     "papaparse": "^5.4.1",
