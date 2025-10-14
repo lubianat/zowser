@@ -21,8 +21,6 @@
   let organismIdsByName = {};
   let imagingModalityIdsByName = {};
   $: dimensionFilter = "";
-  $: sourceFilter = "";
-  $: collectionFilter = "";
   $: organismFilter = "";
   $: imagingModalityFilter = "";
   $: textFilter = "";
@@ -108,19 +106,8 @@
     return rows;
   }
 
-  function filterSource(event) {
-    sourceFilter = event.target.value || "";
-    collectionFilter = "";
-    console.log("filterSource", sourceFilter, collectionFilter);
-    tableRows = filterRows(ngffTable.getRows());
-  }
   function filterDimensions(event) {
     dimensionFilter = event.target.value || "";
-    tableRows = filterRows(ngffTable.getRows());
-  }
-
-  function filterCollection(event) {
-    collectionFilter = event.target.value || "";
     tableRows = filterRows(ngffTable.getRows());
   }
 
@@ -139,9 +126,73 @@
     tableRows = filterRows(ngffTable.getRows());
   }
 
-  function formatCsv(url) {
-    return url.split("/").pop().replace(".csv", "").replace("_samples", "");
-  }
+  // Reactive helper lists (Option 1 - cross-filter)
+  // Reactive helper lists (Option 1 - cross-filter)
+  $: allRows = ngffTable.getRows();
+
+  // Dynamically derive which dimensions exist at all
+  $: allDimensionValues = Array.from(
+    new Set(allRows.map((r) => String(r.dim_count)).filter(Boolean)),
+  ).sort();
+
+  // Available dimensions given current organism/modality filters
+  $: availableDimensions =
+    allRows.length === 0
+      ? allDimensionValues // show all (none yet means later it fills)
+      : Array.from(
+          new Set(
+            allRows
+              .filter(
+                (r) =>
+                  (organismFilter ? r.organismId === organismFilter : true) &&
+                  (imagingModalityFilter
+                    ? r.fbbiId === imagingModalityFilter
+                    : true),
+              )
+              .map((r) => String(r.dim_count))
+              .filter(Boolean),
+          ),
+        ).sort();
+
+  // Available organisms given current modality and dimension filters
+  $: availableOrganismIds =
+    allRows.length === 0
+      ? Object.values(organismIdsByName)
+      : Array.from(
+          new Set(
+            allRows
+              .filter(
+                (r) =>
+                  (imagingModalityFilter
+                    ? r.fbbiId === imagingModalityFilter
+                    : true) &&
+                  (dimensionFilter
+                    ? String(r.dim_count) === dimensionFilter
+                    : true),
+              )
+              .map((r) => r.organismId)
+              .filter(Boolean),
+          ),
+        );
+
+  // Available imaging modalities given current organism and dimension filters
+  $: availableImagingIds =
+    allRows.length === 0
+      ? Object.values(imagingModalityIdsByName)
+      : Array.from(
+          new Set(
+            allRows
+              .filter(
+                (r) =>
+                  (organismFilter ? r.organismId === organismFilter : true) &&
+                  (dimensionFilter
+                    ? String(r.dim_count) === dimensionFilter
+                    : true),
+              )
+              .map((r) => r.fbbiId)
+              .filter(Boolean),
+          ),
+        );
 </script>
 
 <PreviewPopup />
@@ -182,17 +233,17 @@
 
         <div class="selectWrapper">
           <select bind:value={dimensionFilter} on:change={filterDimensions}>
-            <option value=""
-              >{dimensionFilter !== ""
-                ? "All Dimensions"
-                : "Dimension Count"}</option
-            >
+            <option value="">
+              {dimensionFilter !== "" ? "All Dimensions" : "Dimension Count"}
+            </option>
             <hr />
-            <option value="2">2D</option>
-            <option value="3">3D</option>
-            <option value="4">4D</option>
-            <option value="5">5D</option>
+            {#each allDimensionValues as dim}
+              {#if availableDimensions.includes(dim)}
+                <option value={dim}>{dim}D</option>
+              {/if}
+            {/each}
           </select>
+
           <div>
             <button
               title="Clear Filter"
@@ -211,7 +262,9 @@
               >{organismFilter == "" ? "Organism" : "All Organisms"}</option
             >
             <hr />
-            {#each Object.keys(organismIdsByName).sort() as name}
+            {#each Object.keys(organismIdsByName)
+              .sort()
+              .filter( (name) => availableOrganismIds.includes(organismIdsByName[name]), ) as name}
               <option value={organismIdsByName[name]}>{name}</option>
             {/each}
           </select>
@@ -236,7 +289,9 @@
                 : "All Modalities"}</option
             >
             <hr />
-            {#each Object.keys(imagingModalityIdsByName).sort() as name (name)}
+            {#each Object.keys(imagingModalityIdsByName)
+              .sort()
+              .filter( (name) => availableImagingIds.includes(imagingModalityIdsByName[name]), ) as name (name)}
               <option value={imagingModalityIdsByName[name]}>{name}</option>
             {/each}
           </select>
