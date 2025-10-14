@@ -77,14 +77,18 @@
     controller.abort();
   });
 
-  $: description = (textFilter != "" && rowData.description?.toLowerCase().includes(textFilter.toLowerCase())) ? rowData.description : "";
+  $: description =
+    textFilter != "" &&
+    rowData.description?.toLowerCase().includes(textFilter.toLowerCase())
+      ? rowData.description
+      : "";
 
   let isShaking = false;
   // Adapted from https://github.com/IDR/ome-ngff-samples/blob/main/index.md
   function copyTextToClipboard(text) {
     var textArea = document.createElement("textarea");
     // Place in the top-left corner of screen regardless of scroll position.
-    textArea.style.position = 'fixed';
+    textArea.style.position = "fixed";
     textArea.value = text;
     document.body.appendChild(textArea);
     textArea.focus();
@@ -102,57 +106,77 @@
       isShaking = true;
       setTimeout(() => (isShaking = false), 1000);
     }
-};
+  }
 </script>
 
 <div class="zarr-list-item">
   <div class="thumbWrapper" on:click={handleThumbClick}>
     {#if imgAttrs}
-      <Thumbnail source={imgUrl} attrs={imgAttrs} max_size={2000} {thumbDatasetIndex} {thumbAspectRatio}/>
+      <Thumbnail
+        source={imgUrl}
+        attrs={imgAttrs}
+        max_size={2000}
+        {thumbDatasetIndex}
+        {thumbAspectRatio}
+      />
     {/if}
   </div>
   <div>
-    <div title="{rowData.url}"><strong>{@html formatUrlToName(rowData.url)} </strong>
-
-  </div>
+    <div title={rowData.url}>
+      <strong>{@html formatUrlToName(rowData.url)} </strong>
+    </div>
     <div class={textFilter == "" ? "hideOnSmall" : ""}>
       <!-- If we're not filtering by text (name/description) then hide the name on small screen -->
-      {@html rowData.name ? rowData.name.replaceAll(textFilter, `<mark>${textFilter}</mark>`) : ""}
+      {@html rowData.name
+        ? rowData.name.replaceAll(textFilter, `<mark>${textFilter}</mark>`)
+        : ""}
     </div>
-    <div>{@html description.replaceAll(textFilter, `<mark>${textFilter}</mark>`)}</div>
-    {#if rowData.source }
+    <div>
+      {@html description.replaceAll(textFilter, `<mark>${textFilter}</mark>`)}
+    </div>
+    {#if rowData.source}
       <div>
         <span class="hideOnSmall">Data</span>
         {#if rowData.csv}
           <span class="hideOnSmall">from collection</span>
-          <a title="Show collection in a new tab" href={csvUrl(rowData)} target="_blank">{rowData.csv?.split("/").pop().replace(".csv", "")}</a>
+          <a
+            title="Show collection in a new tab"
+            href={csvUrl(rowData)}
+            target="_blank"
+            >{rowData.csv?.split("/").pop().replace(".csv", "")}</a
+          >
         {/if}
-        <span class="hideOnSmall">provided by</span> <strong style="color:grey">{rowData.source}</strong>.
+        <span class="hideOnSmall">provided by</span>
+        <strong style="color:grey">{rowData.source}</strong>.
       </div>
     {/if}
     <div>
       <button
-    class="no_border"
-    class:shake={isShaking}
-    title="Copy S3 URL to clipboard"
-    on:click={(event) => copyTextToClipboard(rowData.url)
-    }
-    >
-    <img class="icon" src={copyImage} />
-    </button>
+        class="no_border"
+        class:shake={isShaking}
+        title="Copy S3 URL to clipboard"
+        on:click={(event) => copyTextToClipboard(rowData.url)}
+      >
+        <img class="icon" src={copyImage} />
+      </button>
 
-      <a title="Validate NGFF with 'ome-ngff-validator' in new browser tab" target="_blank"
-                    href="https://ome.github.io/ome-ngff-validator/?source={rowData.url}">
-                    <img class="icon" style="opacity: 0.9" src={checkImage}/></a>
+      <a
+        title="Validate NGFF with 'ome-ngff-validator' in new browser tab"
+        target="_blank"
+        href="https://ome.github.io/ome-ngff-validator/?source={rowData.url}"
+      >
+        <img class="icon" style="opacity: 0.9" src={checkImage} /></a
+      >
 
-    {#if rowData.origin }
-
-          <a title="Link to original data: {rowData.origin}"
-        href={rowData.origin}
-        target="_blank">
-                <img class="icon" style="opacity: 0.9" src={externalDataImage}/></a>
-
-    {/if}
+      {#if rowData.origin}
+        <a
+          title="Link to original data: {rowData.origin}"
+          href={rowData.origin}
+          target="_blank"
+        >
+          <img class="icon" style="opacity: 0.9" src={externalDataImage} /></a
+        >
+      {/if}
     </div>
     <div>
       Image size:
@@ -162,9 +186,9 @@
         {/if}
       {/each}
     </div>
-    {#if sortedBy == "chunk_pixels" }
+    {#if sortedBy == "chunk_pixels"}
       <div>Chunk shape: {rowData.chunks}</div>
-    {:else if sortedBy == "shard_pixels" }
+    {:else if sortedBy == "shard_pixels"}
       <div>Shard shape: {rowData.shards}</div>
     {:else}
       <div>Data size: {filesizeformat(rowData.written)}</div>
@@ -193,26 +217,31 @@
     }
   }
 
-
   :root {
-  --icon-size: 20px;
-}
+    --icon-size: 20px;
+  }
 
   .icon {
     width: var(--icon-size);
     height: var(--icon-size);
     aspect-ratio: 1 / 1;
   }
-    .no_border {
+  .no_border {
     border: none;
     background: none;
     padding: 0;
+  }
+
+  .shake {
+    animation: 0.1s linear 0s infinite alternate seesaw;
+  }
+
+  @keyframes seesaw {
+    from {
+      transform: rotate(-0.05turn);
     }
-
-   .shake {
-        animation: 0.1s linear 0s infinite alternate seesaw;
+    to {
+      transform: rotate(0.05turn);
     }
-
-    @keyframes seesaw { from { transform: rotate(-0.05turn) } to { transform: rotate(0.05turn); }  }
-
+  }
 </style>

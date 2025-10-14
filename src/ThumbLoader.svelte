@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { loadMultiscales } from "./tableStore";
+  import { loadMultiscales } from "./thumbnailGenerator.js";
   import Thumbnail from "./Thumbnail.svelte";
 
   export let rowData;
