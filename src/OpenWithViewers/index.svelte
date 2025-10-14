@@ -54,28 +54,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. -->
   }
 
   // ──────────────── Copy logic (from CopyButton) ────────────────
-  let shaking = false;
+  let shaking = {};
 
-  function copyTextToClipboard(copy_text) {
+  function copyTextToClipboard(copy_text, key) {
     const textArea = document.createElement("textarea");
-    textArea.style.position = "fixed";
     textArea.value = copy_text;
     document.body.appendChild(textArea);
-    textArea.focus();
     textArea.select();
-
-    let successful = false;
-    try {
-      successful = document.execCommand("copy");
-    } catch (err) {
-      console.error("Unable to copy text", err);
-    }
+    document.execCommand("copy");
     document.body.removeChild(textArea);
 
-    if (successful) {
-      shaking = true;
-      setTimeout(() => (shaking = false), 1000);
-    }
+    shaking[key] = true;
+    setTimeout(() => (shaking[key] = false), 1000);
   }
 </script>
 
@@ -85,11 +75,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. -->
     <button
       class="inlineButton"
       title="Copy URL"
-      on:click={() => copyTextToClipboard(source)}
+      on:click={() => copyTextToClipboard(source, "bigCopyButton")}
     >
-      <img class="viewer_icon" src={copy_icon} alt="Copy icon" />
+      <img
+        class="viewer_icon"
+        class:shaking={shaking.bigCopyButton}
+        src={copy_icon}
+      />
     </button>
-
     <!-- Validator -->
     <a
       class="inlineButton"
@@ -101,7 +94,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. -->
     </a>
 
     <!-- Each viewer -->
-    {#each viewers as viewer}
+    {#each viewers as viewer, i}
       <div class="viewerItem">
         {#if viewer.href}
           <a
@@ -116,12 +109,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. -->
           <button
             class="inlineButton"
             title="Copy URL"
-            on:click={() => copyTextToClipboard(source)}
+            on:click={() => copyTextToClipboard(source, i)}
           >
             <img class="viewer_icon" src={viewer.logo_path} alt="Viewer Icon" />
             <img
               class="smallCopyBtn"
-              class:shaking
+              class:shaking={shaking[i]}
               src={copy_icon}
               alt="Copy Icon"
             />
