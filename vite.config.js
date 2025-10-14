@@ -35,6 +35,7 @@ function cloneIndexHtmlPlugin(routes = []) {
 let config = {
   plugins: [svelte(), cloneIndexHtmlPlugin()],
 };
+
 // this will be undefined when deployed from netlify, but is used by gh-pages
 if (process.env.GITHUB_REPOSITORY_OWNER) {
   config.base = `/zowser/`;

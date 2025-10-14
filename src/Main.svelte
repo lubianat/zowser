@@ -15,7 +15,6 @@
 
   let tableRows = [];
   // e.g. {"IDR": {"idr0004.csv": {"count": 100}}, "JAX": {}...
-  let zarrMetadataList = [];
   let totalZarrs = 0;
   let totalBytes = 0;
   let showSourceColumn = false;

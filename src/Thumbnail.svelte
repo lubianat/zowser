@@ -1,141 +1,138 @@
 <script>
-  import { onMount, onDestroy } from "svelte";
-  import * as zarr from "zarrita";
-  import { slice } from "@zarrita/indexing";
-  import {
-    renderTo8bitArray,
-    getMinMaxValues,
-    getDefaultVisibilities,
-    hexToRGB,
-    getDefaultColors,
-  } from "./util";
+  import { onMount, onDestroy, tick } from "svelte";
+  import { generateThumbnail } from "./thumbnailGenerator.js";
 
-  // source is e.g. https://s3.embassy.ebi.ac.uk/idr/zarr/v0.4/6001240.zarr
   export let source;
   export let attrs;
   export let thumbDatasetIndex = undefined;
   export let thumbAspectRatio = 1;
   export let cssSize = 120;
-  // if the lowest resolution is above this size (squared), we don't try to load thumbnails
   export let max_size = 512;
 
+  const BASE = import.meta.env.BASE_URL;
+
   let canvas;
+  let imgEl;
+
+  // initial css box respecting aspect ratio
   let width = cssSize;
   let height = cssSize;
-  if (thumbAspectRatio > 1) {
-    height = width / thumbAspectRatio;
-  } else if (thumbAspectRatio < 1) {
-    width = height * thumbAspectRatio;
-  }
+  if (thumbAspectRatio > 1) height = width / thumbAspectRatio;
+  else if (thumbAspectRatio < 1) width = height * thumbAspectRatio;
   let cssWidth = width;
   let cssHeight = height;
+
   let showSpinner = true;
+  // mode: 'none' | 'cached' | 'live'
+  let mode = "none";
 
   const controller = new AbortController();
 
-  async function loadThumbnail() {
-    let paths = attrs.multiscales[0].datasets.map((d) => d.path);
-    let axes = attrs.multiscales[0].axes.map((a) => a.name);
-
-    // By default, we use the smallest thumbnail path (last dataset)
-    let path = paths.at(-1);
-    if (thumbDatasetIndex != undefined && thumbDatasetIndex < paths.length) {
-      // but if we have a valid dataset index, use that...
-      path = paths[thumbDatasetIndex];
+  function basenameFromSource(src) {
+    try {
+      const u = new URL(src, window.location.href);
+      const parts = u.pathname.split("/").filter(Boolean);
+      return parts[parts.length - 1];
+    } catch {
+      const parts = src.split("?")[0].split("/");
+      return parts[parts.length - 1];
     }
+  }
 
-    const store = new zarr.FetchStore(source + "/" + path);
-    const arr = await zarr.open.v3(store, { kind: "array" });
+  async function tryCachedFirst() {
+    const thumbName = basenameFromSource(source);
+    console.log(BASE);
+    const cachedUrl = `${BASE}thumbs/${thumbName}.jpg`;
 
-    let chDim = axes.indexOf("c");
+    // Preload without touching DOM; switch atomically on load
+    const probe = new Image();
+    probe.decoding = "async";
+    probe.referrerPolicy = "no-referrer";
+    return new Promise((resolve) => {
+      probe.onload = () => {
+        mode = "cached";
+        showSpinner = false;
+        imgEl.src = cachedUrl; // show cached immediately
+        resolve(true);
+      };
+      probe.onerror = () => resolve(false);
+      probe.src = cachedUrl;
+    });
+  }
 
-    let shape = arr.shape;
-    if (shape.at(-1) * shape.at(-2) > max_size * max_size) {
-      console.log("Lowest resolution too large for Thumbnail: ", shape, source);
+  async function loadFromZarr() {
+    mode = "live"; // ensure canvas is visible under spinner
+
+    const result = await generateThumbnail(
+      source,
+      attrs,
+      thumbDatasetIndex,
+      max_size,
+      controller.signal,
+    );
+
+    if (!result) {
+      // Keep spinner indefinitely (requested behavior).
+      console.warn("Thumbnail generation skipped/failed:", source);
       return;
     }
 
-    let dims = shape.length;
+    const { rgb, width: w, height: h } = result;
+    width = w;
+    height = h;
 
-    let channel_count = shape[chDim] || 1;
-    let visibilities;
-    let colors;
-    if (attrs?.omero?.channels) {
-      visibilities = attrs.omero.channels.map((ch) => ch.active);
-      colors = attrs.omero.channels.map((ch) => hexToRGB(ch.color));
-    } else {
-      visibilities = getDefaultVisibilities(channel_count);
-      colors = getDefaultColors(channel_count, visibilities);
-    }
-    // filter for active channels
-    colors = colors.filter((col, idx) => visibilities[idx]);
-
-    let activeChannels = visibilities.reduce((prev, active, index) => {
-      if (active) prev.push(index);
-      return prev;
-    }, []);
-
-    let promises = activeChannels.map((chIndex) => {
-      let slices = shape.map((dimSize, index) => {
-        // channel
-        if (index == chDim) return chIndex;
-        // x and y
-        if (index >= dims - 2) {
-          return slice(0, dimSize);
-        }
-        // z
-        if (axes[index] == "z") {
-          return parseInt(dimSize / 2 + "");
-        }
-        if (axes[index] == "t") {
-          return parseInt(dimSize / 2 + "");
-        }
-        return 0;
-      });
-      return zarr.get(arr, slices, { opts: { signal: controller.signal } });
-    });
-
-    let ndChunks = await Promise.all(promises);
-    let minMaxValues = ndChunks.map((ch) => getMinMaxValues(ch));
-    let rbgData = renderTo8bitArray(ndChunks, minMaxValues, colors);
-
-    width = shape.at(-1);
-    height = shape.at(-2);
-    let scale = width / cssSize;
-    if (height > width) {
-      scale = height / cssSize;
-    }
-
+    // Fit within cssSize while preserving aspect ratio
+    let scale = Math.max(width, height) / cssSize;
+    if (scale < 1) scale = 1;
     cssWidth = width / scale;
     cssHeight = height / scale;
 
-    // wait for the canvas to be ready (after setting the dimensions)
-    setTimeout(() => {
-      const ctx = canvas.getContext("2d");
-      showSpinner = false;
-      ctx.putImageData(new ImageData(rbgData, width, height), 0, 0);
-    }, 100);
+    await tick(); // ensure canvas is in the DOM and sized
+    const ctx = canvas.getContext("2d");
+    ctx.putImageData(new ImageData(rgb, width, height), 0, 0);
+    showSpinner = false;
   }
 
-  onMount(() => {
-    loadThumbnail();
+  onMount(async () => {
+    const hasCached = await tryCachedFirst();
+    if (!hasCached) {
+      // spinner remains visible while generating
+      await loadFromZarr();
+    }
   });
 
-  onDestroy(() => {
-    controller.abort();
-  });
+  onDestroy(() => controller.abort());
 </script>
 
-<!-- Need a wrapper to show spinner -->
-<div class="canvasWrapper" style="width: {cssWidth}px; height:{cssHeight}px;" class:spinner={showSpinner}>
-<canvas
-  style="width: {cssWidth}px; height:{cssHeight}px; background-color: lightgrey"
-  bind:this={canvas}
-  {height}
-  {width}
-/></div>
+<div
+  class="canvasWrapper"
+  style="width:{cssWidth}px; height:{cssHeight}px;"
+  class:spinner={showSpinner}
+>
+  <!-- Cached image (hidden until confirmed loaded) -->
+  <img
+    bind:this={imgEl}
+    class:hidden={mode !== "cached"}
+    style="width:{cssWidth}px; height:{cssHeight}px; object-fit:cover;"
+    alt=""
+    aria-hidden={mode !== "cached"}
+  />
+
+  <!-- Live NGFF canvas (always present; spinner overlays until drawn) -->
+  <canvas
+    bind:this={canvas}
+    class:hidden={mode !== "live"}
+    style="width:{cssWidth}px; height:{cssHeight}px; background-color: lightgrey;"
+    {width}
+    {height}
+  />
+</div>
 
 <style>
+  .hidden {
+    display: none;
+  }
+
   .canvasWrapper {
     position: relative;
   }
@@ -149,16 +146,15 @@
     }
   }
 
-  .spinner:after {
+  .spinner::after {
     content: "";
     box-sizing: border-box;
     position: absolute;
-    top: 50%;
-    left: 50%;
+    inset: 50% auto auto 50%;
     width: 40px;
     height: 40px;
-    margin-top: -20px;
     margin-left: -20px;
+    margin-top: -20px;
     border-radius: 50%;
     border: 5px solid rgba(180, 180, 180, 0.6);
     border-top-color: rgba(0, 0, 0, 0.6);
