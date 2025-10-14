@@ -4,12 +4,17 @@
   import { loadMultiscales, ngffTable } from "./tableStore";
   import Thumbnail from "./Thumbnail.svelte";
   import { onDestroy } from "svelte";
-  import copyImage from "/copy.png";
-  import checkImage from "/ome-logomark.svg";
-  import externalDataImage from "/original-data.svg";
+
   export let rowData;
   export let textFilter;
   export let sortedBy = undefined;
+
+  import OpenWith from "./OpenWithViewers/index.svelte";
+
+  // Hardcoding datatype and version.
+  // TODO: Should be inferred from the file as in the ngff-validator
+  let ome_zarr_data_type = "image";
+  let ome_zarr_version = "0.5";
 
   let imgAttrs;
   let imgUrl;
@@ -43,10 +48,12 @@
   function formatUrlToName(url) {
     if (textFilter && url.toLowerCase().includes(textFilter.toLowerCase())) {
       const MAX_LENGTH = 50;
+
       // find first occurrence of textFilter in url and highlight it
       let urlLc = url.toLowerCase();
       let filterLc = textFilter.toLowerCase();
       let startMatch = urlLc.indexOf(filterLc);
+
       // let endMatch = start + filterLc.length;
       let start = Math.max(0, Math.min(startMatch, url.length - MAX_LENGTH));
 
@@ -134,50 +141,12 @@
     <div>
       {@html description.replaceAll(textFilter, `<mark>${textFilter}</mark>`)}
     </div>
-    {#if rowData.source}
-      <div>
-        <span class="hideOnSmall">Data</span>
-        {#if rowData.csv}
-          <span class="hideOnSmall">from collection</span>
-          <a
-            title="Show collection in a new tab"
-            href={csvUrl(rowData)}
-            target="_blank"
-            >{rowData.csv?.split("/").pop().replace(".csv", "")}</a
-          >
-        {/if}
-        <span class="hideOnSmall">provided by</span>
-        <strong style="color:grey">{rowData.source}</strong>.
-      </div>
-    {/if}
-    <div>
-      <button
-        class="no_border"
-        class:shake={isShaking}
-        title="Copy S3 URL to clipboard"
-        on:click={(event) => copyTextToClipboard(rowData.url)}
-      >
-        <img class="icon" src={copyImage} />
-      </button>
 
-      <a
-        title="Validate NGFF with 'ome-ngff-validator' in new browser tab"
-        target="_blank"
-        href="https://ome.github.io/ome-ngff-validator/?source={rowData.url}"
-      >
-        <img class="icon" style="opacity: 0.9" src={checkImage} /></a
-      >
-
-      {#if rowData.origin}
-        <a
-          title="Link to original data: {rowData.origin}"
-          href={rowData.origin}
-          target="_blank"
-        >
-          <img class="icon" style="opacity: 0.9" src={externalDataImage} /></a
-        >
-      {/if}
-    </div>
+    <OpenWith
+      source={rowData.url}
+      dtype={ome_zarr_data_type}
+      version={ome_zarr_version}
+    />
     <div>
       Image size:
       {#each ["t", "c", "z", "y", "x"] as dim}
