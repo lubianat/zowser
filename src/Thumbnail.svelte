@@ -9,6 +9,8 @@
   export let cssSize = 120;
   export let max_size = 512;
 
+  const BASE = import.meta.env.BASE_URL;
+
   let canvas;
   let imgEl;
 
@@ -38,8 +40,9 @@
   }
 
   async function tryCachedFirst() {
-    const base = basenameFromSource(source);
-    const cachedUrl = `/thumbs/${base}.jpg`;
+    const thumbName = basenameFromSource(source);
+    console.log(BASE);
+    const cachedUrl = `${BASE}thumbs/${thumbName}.jpg`;
 
     // Preload without touching DOM; switch atomically on load
     const probe = new Image();
