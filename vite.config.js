@@ -4,42 +4,65 @@ import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { existsSync, mkdirSync, copyFileSync } from "fs";
 import { resolve as pathResolve, join as pathJoin } from "path";
 
-// https://dev.to/patarapolw/vite-on-github-pages-with-html5-history-mode-283j
-// We want to clone `index.html` to all routes, e.g. /about/index.html
+// ---------------------------------------------------------------------------
+// CloneIndexHtmlPlugin
+// ---------------------------------------------------------------------------
+// Ensures routes like /about/index.html exist so that GitHub Pages can serve
+// subpages correctly when using HTML5 history mode.
 function cloneIndexHtmlPlugin(routes = []) {
   const name = "CloneIndexHtmlPlugin";
-  const outDir = "dist"; // config's `build.outDir`
-  const src = pathJoin(outDir, "index.html");
+  const outDir = "dist"; // Matches build.outDir (defaults to "dist")
 
   return {
     name,
-    closeBundle: () => {
-      routes.push("about");
+    // Changed from `closeBundle` → `writeBundle` for reliability.
+    writeBundle() {
+      const src = pathJoin(outDir, "index.html");
 
-      routes.map((p) => {
-        const dir = pathResolve(outDir, p);
-        if (!existsSync(dir)) {
-          mkdirSync(dir, { recursive: true });
+      // Ensure we have routes to replicate
+      const uniqueRoutes = Array.from(new Set(["about", ...routes]));
+
+      // Abort early if index.html doesn't exist
+      if (!existsSync(src)) {
+        console.warn(`[${name}] Skipping: ${src} not found`);
+        return;
+      }
+
+      for (const route of uniqueRoutes) {
+        try {
+          const dir = pathResolve(outDir, route);
+          if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+
+          const dst = pathJoin(dir, "index.html");
+          copyFileSync(src, dst);
+          console.log(`[${name}] Copied ${src} → ${dst}`);
+        } catch (err) {
+          console.error(`[${name}] Failed for route "${route}":`, err);
         }
-
-        const dst = pathJoin(outDir, p, "index.html");
-
-        // It is possible to edit HTML here, too.
-        copyFileSync(src, dst);
-        console.log(`${name}: Copied ${src} to ${dst}`);
-      });
+      }
     },
   };
 }
 
-let config = {
-  plugins: [svelte(), cloneIndexHtmlPlugin()],
-};
+// ---------------------------------------------------------------------------
+// Vite Config
+// ---------------------------------------------------------------------------
+export default defineConfig(({ mode }) => {
+  const config = {
+    plugins: [svelte(), cloneIndexHtmlPlugin()],
+    build: {
+      outDir: "dist",
+      emptyOutDir: true, // Clean previous builds
+    },
+  };
 
-// this will be undefined when deployed from netlify, but is used by gh-pages
-if (process.env.GITHUB_REPOSITORY_OWNER) {
-  config.base = `/zowser/`;
-}
+  // Use proper base path for GitHub Pages deployment
+  if (process.env.GITHUB_REPOSITORY_OWNER) {
+    config.base = `/zowser/`;
+    console.log("[vite] Using GitHub Pages base path:", config.base);
+  } else {
+    config.base = "./";
+  }
 
-// https://vitejs.dev/config/
-export default defineConfig(config);
+  return config;
+});
