@@ -67,6 +67,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. -->
     shaking[key] = true;
     setTimeout(() => (shaking[key] = false), 1000);
   }
+
+  let validatePopover;
+  let validateUrl = "";
+
+  function openValidatePopover(url) {
+    validateUrl = url;
+    validatePopover?.showPopover();
+  }
+
+  function closeValidatePopover() {
+    validatePopover?.hidePopover();
+  }
 </script>
 
 <div class="openwith">
@@ -81,17 +93,20 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. -->
         class="viewer_icon"
         class:shaking={shaking.bigCopyButton}
         src={copy_icon}
+        alt="Copy Icon"
       />
     </button>
-    <!-- Validator -->
-    <a
+    <!-- Validator (popover instead of new tab) -->
+    <button
       class="inlineButton"
       title="Validate NGFF"
-      target="_blank"
-      href={`https://ome.github.io/ome-ngff-validator/?source=${source}`}
+      on:click={() =>
+        openValidatePopover(
+          `https://ome.github.io/ome-ngff-validator/?source=${source}`,
+        )}
     >
       <img class="viewer_icon" src={checkImage} alt="Validator" />
-    </a>
+    </button>
 
     <!-- Each viewer -->
     {#each viewers as viewer, i}
@@ -129,4 +144,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. -->
       </div>
     {/each}
   </div>
+</div>
+
+<div bind:this={validatePopover} id="validate-popover" popover>
+  <div class="popover-buttons">
+    <button
+      class="external"
+      title="Open externally"
+      on:click={closeValidatePopover}
+      on:click={() => window.open(validateUrl, "_blank")}>↗</button
+    >
+    <button class="close" title="Close" on:click={closeValidatePopover}
+      >&times;</button
+    >
+  </div>
+  <iframe src={validateUrl} frameborder="0" title="NGFF Validator"></iframe>
 </div>
