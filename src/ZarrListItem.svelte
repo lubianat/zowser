@@ -189,28 +189,4 @@
   :root {
     --icon-size: 20px;
   }
-
-  .icon {
-    width: var(--icon-size);
-    height: var(--icon-size);
-    aspect-ratio: 1 / 1;
-  }
-  .no_border {
-    border: none;
-    background: none;
-    padding: 0;
-  }
-
-  .shake {
-    animation: 0.1s linear 0s infinite alternate seesaw;
-  }
-
-  @keyframes seesaw {
-    from {
-      transform: rotate(-0.05turn);
-    }
-    to {
-      transform: rotate(0.05turn);
-    }
-  }
 </style>

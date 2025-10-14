@@ -39,7 +39,6 @@
 
 <div bind:this={popover} id="mypopover" popover>
   <button class="close" title="Close" on:click={hidePopover}>&times;</button>
-
   <div class="scrollable">
     <!-- key forces rerender when url changes -->
     {#key zarrUrl}

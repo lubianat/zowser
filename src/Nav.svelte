@@ -56,11 +56,4 @@
   img {
     height: 30px;
   }
-  .github img,
-  .github {
-    height: 20px;
-  }
-  .github {
-    margin: 0 10px;
-  }
 </style>
