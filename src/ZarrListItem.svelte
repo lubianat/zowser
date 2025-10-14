@@ -4,12 +4,17 @@
   import { loadMultiscales, ngffTable } from "./tableStore";
   import Thumbnail from "./Thumbnail.svelte";
   import { onDestroy } from "svelte";
-  import copyImage from "/copy.png";
-  import checkImage from "/ome-logomark.svg";
-  import externalDataImage from "/original-data.svg";
+
   export let rowData;
   export let textFilter;
   export let sortedBy = undefined;
+
+  import OpenWith from "./OpenWithViewers/index.svelte";
+
+  // Hardcoding datatype and version.
+  // TODO: Should be inferred from the file as in the ngff-validator
+  let ome_zarr_data_type = "image";
+  let ome_zarr_version = "0.5";
 
   let imgAttrs;
   let imgUrl;
@@ -43,10 +48,12 @@
   function formatUrlToName(url) {
     if (textFilter && url.toLowerCase().includes(textFilter.toLowerCase())) {
       const MAX_LENGTH = 50;
+
       // find first occurrence of textFilter in url and highlight it
       let urlLc = url.toLowerCase();
       let filterLc = textFilter.toLowerCase();
       let startMatch = urlLc.indexOf(filterLc);
+
       // let endMatch = start + filterLc.length;
       let start = Math.max(0, Math.min(startMatch, url.length - MAX_LENGTH));
 
@@ -77,14 +84,18 @@
     controller.abort();
   });
 
-  $: description = (textFilter != "" && rowData.description?.toLowerCase().includes(textFilter.toLowerCase())) ? rowData.description : "";
+  $: description =
+    textFilter != "" &&
+    rowData.description?.toLowerCase().includes(textFilter.toLowerCase())
+      ? rowData.description
+      : "";
 
   let isShaking = false;
   // Adapted from https://github.com/IDR/ome-ngff-samples/blob/main/index.md
   function copyTextToClipboard(text) {
     var textArea = document.createElement("textarea");
     // Place in the top-left corner of screen regardless of scroll position.
-    textArea.style.position = 'fixed';
+    textArea.style.position = "fixed";
     textArea.value = text;
     document.body.appendChild(textArea);
     textArea.focus();
@@ -102,58 +113,40 @@
       isShaking = true;
       setTimeout(() => (isShaking = false), 1000);
     }
-};
+  }
 </script>
 
 <div class="zarr-list-item">
   <div class="thumbWrapper" on:click={handleThumbClick}>
     {#if imgAttrs}
-      <Thumbnail source={imgUrl} attrs={imgAttrs} max_size={2000} {thumbDatasetIndex} {thumbAspectRatio}/>
+      <Thumbnail
+        source={imgUrl}
+        attrs={imgAttrs}
+        max_size={2000}
+        {thumbDatasetIndex}
+        {thumbAspectRatio}
+      />
     {/if}
   </div>
   <div>
-    <div title="{rowData.url}"><strong>{@html formatUrlToName(rowData.url)} </strong>
-
-  </div>
+    <div title={rowData.url}>
+      <strong>{@html formatUrlToName(rowData.url)} </strong>
+    </div>
     <div class={textFilter == "" ? "hideOnSmall" : ""}>
       <!-- If we're not filtering by text (name/description) then hide the name on small screen -->
-      {@html rowData.name ? rowData.name.replaceAll(textFilter, `<mark>${textFilter}</mark>`) : ""}
+      {@html rowData.name
+        ? rowData.name.replaceAll(textFilter, `<mark>${textFilter}</mark>`)
+        : ""}
     </div>
-    <div>{@html description.replaceAll(textFilter, `<mark>${textFilter}</mark>`)}</div>
-    {#if rowData.source }
-      <div>
-        <span class="hideOnSmall">Data</span>
-        {#if rowData.csv}
-          <span class="hideOnSmall">from collection</span>
-          <a title="Show collection in a new tab" href={csvUrl(rowData)} target="_blank">{rowData.csv?.split("/").pop().replace(".csv", "")}</a>
-        {/if}
-        <span class="hideOnSmall">provided by</span> <strong style="color:grey">{rowData.source}</strong>.
-      </div>
-    {/if}
     <div>
-      <button
-    class="no_border"
-    class:shake={isShaking}
-    title="Copy S3 URL to clipboard"
-    on:click={(event) => copyTextToClipboard(rowData.url)
-    }
-    >
-    <img class="icon" src={copyImage} />
-    </button>
-
-      <a title="Validate NGFF with 'ome-ngff-validator' in new browser tab" target="_blank"
-                    href="https://ome.github.io/ome-ngff-validator/?source={rowData.url}">
-                    <img class="icon" style="opacity: 0.9" src={checkImage}/></a>
-
-    {#if rowData.origin }
-
-          <a title="Link to original data: {rowData.origin}"
-        href={rowData.origin}
-        target="_blank">
-                <img class="icon" style="opacity: 0.9" src={externalDataImage}/></a>
-
-    {/if}
+      {@html description.replaceAll(textFilter, `<mark>${textFilter}</mark>`)}
     </div>
+
+    <OpenWith
+      source={rowData.url}
+      dtype={ome_zarr_data_type}
+      version={ome_zarr_version}
+    />
     <div>
       Image size:
       {#each ["t", "c", "z", "y", "x"] as dim}
@@ -162,9 +155,9 @@
         {/if}
       {/each}
     </div>
-    {#if sortedBy == "chunk_pixels" }
+    {#if sortedBy == "chunk_pixels"}
       <div>Chunk shape: {rowData.chunks}</div>
-    {:else if sortedBy == "shard_pixels" }
+    {:else if sortedBy == "shard_pixels"}
       <div>Shard shape: {rowData.shards}</div>
     {:else}
       <div>Data size: {filesizeformat(rowData.written)}</div>
@@ -193,26 +186,31 @@
     }
   }
 
-
   :root {
-  --icon-size: 20px;
-}
+    --icon-size: 20px;
+  }
 
   .icon {
     width: var(--icon-size);
     height: var(--icon-size);
     aspect-ratio: 1 / 1;
   }
-    .no_border {
+  .no_border {
     border: none;
     background: none;
     padding: 0;
+  }
+
+  .shake {
+    animation: 0.1s linear 0s infinite alternate seesaw;
+  }
+
+  @keyframes seesaw {
+    from {
+      transform: rotate(-0.05turn);
     }
-
-   .shake {
-        animation: 0.1s linear 0s infinite alternate seesaw;
+    to {
+      transform: rotate(0.05turn);
     }
-
-    @keyframes seesaw { from { transform: rotate(-0.05turn) } to { transform: rotate(0.05turn); }  }
-
+  }
 </style>
