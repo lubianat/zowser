@@ -20,6 +20,11 @@ logging.basicConfig(
 )
 log = logging.getLogger("load_zarr_stats")
 
+# ────────────────────────────────────────────────────────────────────────────────
+# Path configuration
+# ────────────────────────────────────────────────────────────────────────────────
+HERE = Path(__file__).parent
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Utility functions
@@ -140,6 +145,8 @@ def load_series(zarr_url):
 # ────────────────────────────────────────────────────────────────────────────────
 def load_zarr(zarr_url, average_count=5, flat=False):
     log.info(f"Loading Zarr: {zarr_url}")
+
+    # Assuming v0.5
     response = load_json(zarr_url + "/zarr.json")
 
     if not response:
@@ -173,6 +180,22 @@ def load_zarr(zarr_url, average_count=5, flat=False):
                     .get("written", 0)
                 )
                 stats["dimension_names"] = arr_json.get("dimension_names", "")
+
+        # In flat mode, still process bf2raw layout
+        if bf2raw:
+            log.debug("→ Using bioformats2raw layout")
+            series = load_series(zarr_url)
+            if series:
+                bf_img_json = load_json(zarr_url + f"/{series[0]}/zarr.json")
+                bf_img_ms = (
+                    bf_img_json.get("attributes", {}).get("ome", {}).get("multiscales")
+                )
+                if bf_img_ms:
+                    stats = get_array_values(zarr_url + f"/{series[0]}", bf_img_ms)
+                else:
+                    log.warning("Missing multiscales in first series image")
+            else:
+                log.warning("No series found in bioformats2raw layout")
         stats.update(rocrate_data)
         return stats
 
@@ -286,8 +309,8 @@ def main():
     else:
         log.setLevel(logging.WARNING)
 
-    input_path = args.input_path
-    output_csv = input_path + "_hydrated.csv"
+    input_path = HERE / "sample_zarrs.yaml"
+    output_csv = HERE / "sample_zarrs_hydrated.csv"
 
     column_names = [
         "url",
@@ -308,11 +331,27 @@ def main():
     unique_urls = set(extract_zarr_urls(input_path))
     log.info(f"Found {len(unique_urls)} unique Zarr URLs")
 
-    with Path(output_csv).open("w", newline="") as csvfile:
-        writer = csv.writer(csvfile, delimiter=",", quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(column_names)
+    # Read existing URLs from CSV if file exists
+    existing_urls = set()
+    if output_csv.exists():
+        with output_csv.open("r", newline="") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                existing_urls.add(row.get("url", ""))
+
+    with Path(output_csv).open("a", newline="") as csvfile:
+        # Write header only if file is empty
+        if output_csv.stat().st_size == 0:
+            writer = csv.writer(csvfile, delimiter=",", quoting=csv.QUOTE_MINIMAL)
+            writer.writerow(column_names)
+        else:
+            writer = csv.writer(csvfile, delimiter=",", quoting=csv.QUOTE_MINIMAL)
 
         for url in unique_urls:
+            if url in existing_urls:
+                log.info(f"Skipping {url} (already in CSV)")
+                continue
+
             log.info(f"Processing {url}")
             stats = load_zarr(url, flat=args.flat)
 
