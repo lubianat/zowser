@@ -13,7 +13,6 @@
   // hardcode to local samples
   let csvUrl = zarr_samples;
 
-  let rawRows = [];
   let tableRows = [];
   // e.g. {"IDR": {"idr0004.csv": {"count": 100}}, "JAX": {}...
   let totalZarrs = 0;
@@ -29,7 +28,6 @@
   // The ngffTable is built as CSV files are loaded
   // it is NOT filtered
   ngffTable.subscribe((rows) => {
-    rawRows = rows; // unfiltered
     tableRows = filterRows(rows);
     // NB: don't use filtered rows for sources
     totalZarrs = rows.length;
@@ -37,36 +35,6 @@
       return acc + parseInt(row["written"]) || 0;
     }, 0);
   });
-
-  // --- BioFile Finder link (auto from headers) ---
-  function toHttps(u) {
-    try {
-      const url = new URL(u);
-      url.protocol = "https:";
-      return url.toString();
-    } catch {
-      return u.replace(/^http:/, "https:");
-    }
-  }
-
-  // Derive headers dynamically from the first row in the table
-  $: headers = rawRows.length ? Object.keys(rawRows[0]) : [];
-
-  // Join into comma-separated list for BFF
-  $: bffColumns = encodeURIComponent(headers.join(","));
-
-  // Build the source object and final URL
-  $: bffSourceObj = {
-    name: csvUrl?.split("/").pop() || "data.csv",
-    type: "csv",
-    uri: toHttps(csvUrl),
-  };
-
-  $: bffUrl = headers.length
-    ? `https://bff.allencell.org/app?c=${bffColumns}&source=${encodeURIComponent(
-        JSON.stringify(bffSourceObj),
-      )}`
-    : null;
 
   organismStore.subscribe((ontologyTerm) => {
     // iterate over ontologyTerm key, values
@@ -159,6 +127,7 @@
   }
 
   // Reactive helper lists (Option 1 - cross-filter)
+  // Reactive helper lists (Option 1 - cross-filter)
   $: allRows = ngffTable.getRows();
 
   // Dynamically derive which dimensions exist at all
@@ -236,10 +205,7 @@
       <div style="font-size: 90%">
         Showing Collection:
         <a href={csvUrl}>{csvUrl.split("/").pop()}</a>
-        {#if bffUrl}
-          ({filesizeformat(totalBytes)}) [Explore in
-          <a href={bffUrl} target="_blank" rel="noopener">BioFile Finder ↗</a>]
-        {/if}
+        ({filesizeformat(totalBytes)})
       </div>
     </h3>
 
