@@ -1,6 +1,5 @@
 // src/thumbnailGenerator.js
 import * as zarr from "zarrita";
-import { slice } from "@zarrita/indexing";
 import {
     renderTo8bitArray,
     getMinMaxValues,
@@ -80,7 +79,7 @@ export async function generateThumbnail(source, attrs, thumbDatasetIndex, maxSiz
     const slicesFor = (ch) =>
         shape.map((dim, i) => {
             if (i === chDim) return ch;
-            if (i >= shape.length - 2) return slice(0, dim);
+            if (i >= shape.length - 2) return { start: 0, stop: dim, step: 1 };
             return parseInt(dim / 2);
         });
 
