@@ -123,7 +123,10 @@
       version={ome_zarr_version}
     />
     <div>
-      Image size:
+      Content mode: {rowData.ome_zarr_kind}
+    </div>
+    <div>
+      Array dimensions:
       {#each ["t", "c", "z", "y", "x"] as dim}
         {#if rowData[`size_${dim}`] !== undefined}
           {dim.toUpperCase()}:{rowData[`size_${dim}`]} &nbsp;
