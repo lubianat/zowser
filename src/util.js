@@ -4,16 +4,50 @@
 
 import Papa from "papaparse";
 
-// Static assets (only usable in browser/Vite builds)
-import idrLogo from "/idr-mark.svg";
-import nfdi4bioimage from "/nfdi4bioimage.png";
-import ssbdLogo from "/ssbd-logo.png";
 
 // Core numeric and color helpers (Node-safe)
 export * from "./util_core.js";
 
 export const SAMPLES_HOME =
   "https://raw.githubusercontent.com/ome/ome2024-ngff-challenge/main/samples/ngff_samples.csv";
+
+import YAML from "yaml";
+
+const DEFAULT_YAML_URL = `${import.meta.env.BASE_URL}config.yaml`;
+let _viewConfigPromise = null;
+
+// Lazy-load and cache the YAML config the first time it's needed
+export async function getViewConfig() {
+  if (_viewConfigPromise) return _viewConfigPromise;
+
+  _viewConfigPromise = (async () => {
+    try {
+      const txt = await fetch(DEFAULT_YAML_URL).then((r) => r.text());
+      const cfg = YAML.parse(txt) || {};
+      const whitelist = new Set((cfg.samples || []).map((u) => (u || "").trim()));
+      const overrides = new Map();
+
+      for (const item of cfg.extended_samples || []) {
+        if (item && item.url) {
+          const { url, ...rest } = item;
+          overrides.set((url || "").trim(), rest);
+        }
+      }
+
+      // allow both samples + extended
+      const allowed = new Set([...whitelist, ...overrides.keys()]);
+      const predicate = (row) => allowed.has((row.url || "").trim());
+
+      return { predicate, overrides };
+    } catch (err) {
+      console.warn("No YAML view config found, showing all rows.", err);
+      // fallback: no filtering, no overrides
+      return { predicate: () => true, overrides: new Map() };
+    }
+  })();
+
+  return _viewConfigPromise;
+}
 
 
 // ──────────────────────────────────────────────
@@ -26,7 +60,7 @@ export function loadCsv(csvUrl, ngffTable, parentRow = {}) {
     header: false,
     download: true,
     skipEmptyLines: "greedy",
-    complete: (results) => {
+    complete: async (results) => {
       let colNames = ["url"];
       let firstRow = results.data[0];
       if (firstRow.length > 1) {
@@ -42,6 +76,17 @@ export function loadCsv(csvUrl, ngffTable, parentRow = {}) {
       });
 
       let zarrUrlRows = dataRows.filter((r) => !r.url?.endsWith(".csv"));
+
+
+      // ───── apply whitelist + overrides from YAML (optional) ─────
+      const { predicate, overrides } = await getViewConfig();
+      zarrUrlRows = zarrUrlRows
+        .filter(predicate)
+        .map((row) => {
+          const patch = overrides.get((row.url || "").trim());
+          return patch ? Object.assign(row, patch) : row;
+        });
+
       const childCsvRows = dataRows.filter((r) => r.url?.endsWith(".csv"));
 
       const unique = {};

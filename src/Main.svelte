@@ -5,10 +5,10 @@
   import ImageList from "./ImageList.svelte";
   import PreviewPopup from "./PreviewPopup.svelte";
   import form_select_bg_img from "/selectCaret.svg";
-  import zarr_samples from "/samples/sample_zarrs_hydrated.csv?url";
+  import zarr_samples from "/samples/zarrs_metadata.csv?url";
 
-  import { filesizeformat, loadCsv } from "./util";
-  import Nav from "./Nav.svelte";
+  import PageTitle from "./PageTitle.svelte";
+  import { loadCsv } from "./util";
 
   // hardcode to local samples
   let csvUrl = zarr_samples;
@@ -20,6 +20,7 @@
   let showSourceColumn = false;
   let organismIdsByName = {};
   let imagingModalityIdsByName = {};
+
   $: dimensionFilter = "";
   $: organismFilter = "";
   $: imagingModalityFilter = "";
@@ -55,8 +56,6 @@
 
   $: showSourceColumn = tableRows.some((row) => row.source);
 
-  // kick off loading the CSV to populate ngffTable...
-  // This will recursively load other csv files if they are linked in the first one
   if (csvUrl) {
     loadCsv(csvUrl, ngffTable);
   }
@@ -126,7 +125,6 @@
     tableRows = filterRows(ngffTable.getRows());
   }
 
-  // Reactive helper lists (Option 1 - cross-filter)
   // Reactive helper lists (Option 1 - cross-filter)
   $: allRows = ngffTable.getRows();
 
@@ -201,13 +199,15 @@
   <!-- <h1 class="title">OME 2024 NGFF Challenge</h1> -->
 
   <div class="summary">
+    <PageTitle />
+    <!-- 
+    
+    TODO: Integrate with BioFileFinder
     <h3 style="text-align:center">
       <div style="font-size: 90%">
-        Showing Collection:
-        <a href={csvUrl}>{csvUrl.split("/").pop()}</a>
-        ({filesizeformat(totalBytes)})
+        <a href={csvUrl}>metadata.csv</a>
       </div>
-    </h3>
+    </h3> -->
 
     <div class="textInputWrapper">
       <input

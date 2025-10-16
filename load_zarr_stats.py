@@ -269,16 +269,21 @@ def extract_zarr_urls(input_path: str) -> list[str]:
         data = yaml.safe_load(f)
 
     urls = []
-    if not data or "sample" not in data:
+    if not data or "samples" not in data or "extended_samples" not in data:
         return urls
 
-    sample_val = data["sample"]
+    sample_val = data["samples"]
     if isinstance(sample_val, str):
         urls.append(sample_val)
     elif isinstance(sample_val, list):
         for item in sample_val:
             if isinstance(item, str):
                 urls.append(item)
+
+    extra_extended_info = data["extended_samples"]
+    for item in extra_extended_info:
+        urls.append(item["url"])
+
     return urls
 
 
@@ -287,7 +292,6 @@ def extract_zarr_urls(input_path: str) -> list[str]:
 # ────────────────────────────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(description="Hydrate NGFF Zarr stats to CSV.")
-    parser.add_argument("input_path", help="YAML file with sample Zarr URLs")
     parser.add_argument(
         "-v",
         "--verbose",
@@ -309,8 +313,8 @@ def main():
     else:
         log.setLevel(logging.WARNING)
 
-    input_path = HERE / "sample_zarrs.yaml"
-    output_csv = HERE / "sample_zarrs_hydrated.csv"
+    input_path = HERE / "config.yaml"
+    output_csv = HERE / "public" / "samples" / "zarrs_metadata.csv"
 
     column_names = [
         "url",
