@@ -136,7 +136,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. -->
     <div class="viewerItem">
       <button
         class="inlineButton"
-        title="Copy URL"
+        title="Source: {source}"
         on:click={() => copyTextToClipboard(source, "bigCopyButton")}
       >
         <img

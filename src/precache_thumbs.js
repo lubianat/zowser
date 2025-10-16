@@ -15,7 +15,7 @@ import { generateThumbnail, loadMultiscales } from "./thumbnailGenerator.js";
 // Setup paths
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = path.join(__dirname, "../public/thumbs");
-const CSV_FILE = path.join(__dirname, "../public/samples/sample_zarrs_hydrated.csv");
+const CSV_FILE = path.join(__dirname, "../public/samples/zarrs_metadata.csv");
 
 // Ensure output folder
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });

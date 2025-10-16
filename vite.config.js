@@ -1,8 +1,53 @@
 import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 
+import fs from "fs";
+import path from "path";
 import { existsSync, mkdirSync, copyFileSync } from "fs";
 import { resolve as pathResolve, join as pathJoin } from "path";
+
+
+// ---------------------------------------------------------------------------
+// RootConfigPlugin
+// ---------------------------------------------------------------------------
+// Makes root-level "config.yaml" available both in dev (via middleware)
+// and in production (copied to /dist).
+function rootConfigPlugin() {
+  const name = "RootConfigPlugin";
+  const rootFile = path.resolve("config.yaml");
+  const destDir = path.resolve("dist");
+  const destFile = path.join(destDir, "config.yaml");
+
+  return {
+    name,
+    configureServer(server) {
+      server.middlewares.use("/config.yaml", (req, res, next) => {
+        try {
+          const text = fs.readFileSync(rootFile, "utf8");
+          res.setHeader("Content-Type", "text/yaml; charset=utf-8");
+          res.end(text);
+        } catch (e) {
+          console.warn(`[${name}] Missing ${rootFile}`);
+          next();
+        }
+      });
+    },
+    writeBundle() {
+      try {
+        if (fs.existsSync(rootFile)) {
+          fs.mkdirSync(destDir, { recursive: true });
+          fs.copyFileSync(rootFile, destFile);
+          console.log(`[${name}] Copied ${rootFile} → ${destFile}`);
+        } else {
+          console.warn(`[${name}] ${rootFile} not found, skipped.`);
+        }
+      } catch (err) {
+        console.error(`[${name}] Failed to copy config.yaml:`, err);
+      }
+    },
+  };
+}
+
 
 // ---------------------------------------------------------------------------
 // CloneIndexHtmlPlugin
@@ -49,7 +94,7 @@ function cloneIndexHtmlPlugin(routes = []) {
 // ---------------------------------------------------------------------------
 export default defineConfig(({ mode }) => {
   const config = {
-    plugins: [svelte(), cloneIndexHtmlPlugin()],
+    plugins: [svelte(), cloneIndexHtmlPlugin(), rootConfigPlugin()],
     build: {
       outDir: "dist",
       emptyOutDir: true, // Clean previous builds

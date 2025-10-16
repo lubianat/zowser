@@ -44,8 +44,6 @@ export async function loadMultiscales(url, signal) {
 }
 
 
-
-
 export async function generateThumbnail(source, attrs, thumbDatasetIndex, maxSize = 512, signal) {
     if (!attrs?.multiscales?.length) return null;
 

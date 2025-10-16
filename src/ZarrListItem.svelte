@@ -84,36 +84,7 @@
     controller.abort();
   });
 
-  $: description =
-    textFilter != "" &&
-    rowData.description?.toLowerCase().includes(textFilter.toLowerCase())
-      ? rowData.description
-      : "";
-
   let isShaking = false;
-  // Adapted from https://github.com/IDR/ome-ngff-samples/blob/main/index.md
-  function copyTextToClipboard(text) {
-    var textArea = document.createElement("textarea");
-    // Place in the top-left corner of screen regardless of scroll position.
-    textArea.style.position = "fixed";
-    textArea.value = text;
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-    let successful = false;
-    try {
-      successful = document.execCommand("copy");
-    } catch (err) {
-      console.log("Oops, unable to copy");
-    }
-    document.body.removeChild(textArea);
-
-    if (successful) {
-      // trigger shake for 1s
-      isShaking = true;
-      setTimeout(() => (isShaking = false), 1000);
-    }
-  }
 </script>
 
 <div class="zarr-list-item">
@@ -129,17 +100,21 @@
     {/if}
   </div>
   <div>
-    <div title={rowData.url}>
-      <strong>{@html formatUrlToName(rowData.url)} </strong>
+    <div class="nameRow">
+      <div title={rowData.name}>
+        <strong>
+          {@html rowData.name.replaceAll(
+            textFilter,
+            `<mark>${textFilter}</mark>`,
+          )}</strong
+        >
+      </div>
     </div>
-    <div class={textFilter == "" ? "hideOnSmall" : ""}>
-      <!-- If we're not filtering by text (name/description) then hide the name on small screen -->
-      {@html rowData.name
-        ? rowData.name.replaceAll(textFilter, `<mark>${textFilter}</mark>`)
-        : ""}
-    </div>
-    <div>
-      {@html description.replaceAll(textFilter, `<mark>${textFilter}</mark>`)}
+    <div class:hideOnSmall={!textFilter}>
+      {@html rowData.description.replaceAll(
+        textFilter,
+        `<mark>${textFilter}</mark>`,
+      )}
     </div>
 
     <OpenWith

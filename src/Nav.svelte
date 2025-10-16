@@ -10,19 +10,19 @@
 <base href={base} />
 
 <nav>
-  <a class="logolink" href={base}><img alt="OME Logo" src={omeMainNav} /></a>
-  <a href={base}><h2>Zowser — an OME-Zarr browser</h2></a>
+  <!-- <a class="logolink" href={base}><img alt="OME Logo" src={omeMainNav} /></a>
+  <a href={base}><h2>Zowser — an OME-Zarr browser</h2></a> -->
   <div style="flex: 1"></div>
 
   <a href="about/"> About </a>
-  <!-- <a
+  <a
     class="github"
     title="Open in GitHub"
     target="_blank"
-    href="https://github.com/ome/ome2024-ngff-challenge/"
+    href="https://github.com/lubianat/zowser/"
   >
     <img alt="GitHub Logo" src={githubLogo} />
-  </a> -->
+  </a>
 </nav>
 
 <style>
