@@ -21,10 +21,7 @@ class NgffTable {
   }
 
 
-  addCsv(csvUrl, childCsvRows, image_count, plate_count, bytes) {
-    // childCsvRows is [{source: "uni2", url: "http://...csv"}]
-    // make shallow copy of childCsvRows
-    childCsvRows = childCsvRows.map((row) => ({ ...row, child_csv: [] }));
+  addCsv(csvUrl, image_count, plate_count, bytes) {
     // find the child_csv with the same url
     let child;
     for (let csv of this.csvFiles) {
