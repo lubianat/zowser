@@ -34,6 +34,13 @@ export async function getViewConfig() {
         }
       }
 
+      for (const item of cfg.extended_samples || []) {
+        if (item && item.collection) {
+          const { collection, ...rest } = item;
+          overrides.set((collection || "").trim(), rest);
+        }
+      }
+      console.log("Overrides:", { overrides });
       // allow both samples + extended
       const allowed = new Set([...whitelist, ...overrides.keys()]);
       const predicate = (row) => allowed.has((row.url || "").trim());
