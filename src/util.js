@@ -75,19 +75,17 @@ export function loadCsv(csvUrl, ngffTable, parentRow = {}) {
         return rowObj;
       });
 
-      let zarrUrlRows = dataRows.filter((r) => !r.url?.endsWith(".csv"));
+      let zarrUrlRows
 
 
       // ───── apply whitelist + overrides from YAML (optional) ─────
       const { predicate, overrides } = await getViewConfig();
-      zarrUrlRows = zarrUrlRows
+      zarrUrlRows = dataRows
         .filter(predicate)
         .map((row) => {
           const patch = overrides.get((row.url || "").trim());
           return patch ? Object.assign(row, patch) : row;
         });
-
-      const childCsvRows = dataRows.filter((r) => r.url?.endsWith(".csv"));
 
       const unique = {};
       zarrUrlRows.forEach((row) => {
@@ -111,15 +109,8 @@ export function loadCsv(csvUrl, ngffTable, parentRow = {}) {
         );
       }
 
-      ngffTable.addCsv(csvUrl, childCsvRows, image_count, plate_count, bytes);
       ngffTable.addRows(zarrUrlRows);
 
-      // Recursive child CSV loading
-      childCsvRows.forEach((child) => {
-        const childUrl = child.url;
-        child.csv = childUrl;
-        loadCsv(childUrl, ngffTable, child);
-      });
     },
   });
 }

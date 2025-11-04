@@ -4,308 +4,225 @@
   import ColumnSort from "./ColumnSort.svelte";
   import ImageList from "./ImageList.svelte";
   import PreviewPopup from "./PreviewPopup.svelte";
+  import PageTitle from "./PageTitle.svelte";
+  import FilterSelect from "./FilterSelect.svelte";
+  import { loadCsv } from "./util";
+
   import form_select_bg_img from "/selectCaret.svg";
   import zarr_samples from "/samples/zarrs_metadata.csv?url";
 
-  import PageTitle from "./PageTitle.svelte";
-  import { loadCsv } from "./util";
-
-  // hardcode to local samples
+  // ────────────────────────────────────────────────────────────────
+  // State
+  // ────────────────────────────────────────────────────────────────
   let csvUrl = zarr_samples;
-
   let tableRows = [];
-  // e.g. {"IDR": {"idr0004.csv": {"count": 100}}, "JAX": {}...
   let totalZarrs = 0;
   let totalBytes = 0;
   let showSourceColumn = false;
-  let organismIdsByName = {};
-  let imagingModalityIdsByName = {};
 
-  $: dimensionFilter = "";
-  $: organismFilter = "";
-  $: imagingModalityFilter = "";
-  $: textFilter = "";
-
-  // The ngffTable is built as CSV files are loaded
-  // it is NOT filtered
-  ngffTable.subscribe((rows) => {
-    tableRows = filterRows(rows);
-    // NB: don't use filtered rows for sources
-    totalZarrs = rows.length;
-    totalBytes = rows.reduce((acc, row) => {
-      return acc + parseInt(row["written"]) || 0;
-    }, 0);
-  });
-
-  organismStore.subscribe((ontologyTerm) => {
-    // iterate over ontologyTerm key, values
-    let temp = {};
-    for (const [orgId, name] of Object.entries(ontologyTerm)) {
-      temp[name] = orgId;
-    }
-    organismIdsByName = temp;
-  });
-
-  imagingModalityStore.subscribe((ontologyTerm) => {
-    let temp = {};
-    for (const [orgId, name] of Object.entries(ontologyTerm)) {
-      temp[name] = orgId;
-    }
-    imagingModalityIdsByName = temp;
-  });
-
-  $: showSourceColumn = tableRows.some((row) => row.source);
-
-  if (csvUrl) {
-    loadCsv(csvUrl, ngffTable);
-  }
+  let filters = {
+    omezarr_type: "",
+    dimension: "",
+    organism: "",
+    modality: "",
+    text: "",
+  };
 
   let sortedBy = "";
   let sortAscending = false;
+
+  // ────────────────────────────────────────────────────────────────
+  // Data loading & subscription
+  // ────────────────────────────────────────────────────────────────
+  if (csvUrl) loadCsv(csvUrl, ngffTable);
+  tableRows = applyFilters(ngffTable.getRows());
+
+  let allRows = [];
+
+  // Single consolidated subscription
+  ngffTable.subscribe((rows) => {
+    console.log("ngffTable updated, row count:", rows.length);
+    console.log("First few rows:", rows.slice(0, 3));
+
+    allRows = rows; // This ensures allRows is always in sync
+    tableRows = applyFilters(rows);
+    totalZarrs = rows.length;
+    totalBytes = rows.reduce((acc, r) => acc + (parseInt(r.written) || 0), 0);
+    showSourceColumn = rows.some((r) => r.source);
+  });
+
+  // Add debug to derived options
+  $: console.log("allRows count:", allRows?.length);
+  $: console.log("typeOptions:", typeOptions);
+  $: console.log("dimensionOptions:", dimensionOptions);
+  $: console.log("Current filters:", filters);
+
+  // ────────────────────────────────────────────────────────────────
+  // Filtering
+  // ────────────────────────────────────────────────────────────────
+  function applyFilters(rows) {
+    const {
+      omezarr_type: ome_zarr_kind,
+      dimension,
+      organism,
+      modality,
+      text,
+    } = filters;
+    const txt = text.toLowerCase();
+    if (dimension == "" && organism == "" && modality == "" && text == "") {
+      return rows;
+    }
+
+    return rows.filter((r) => {
+      if (dimension && String(r.dim_count) !== dimension) return false;
+      if (organism && r.organismId !== organism) return false;
+      if (modality && r.fbbiId !== modality) return false;
+      if (ome_zarr_kind && r.ome_zarr_kind !== ome_zarr_kind) return false;
+
+      if (
+        txt &&
+        !(
+          r.url?.toLowerCase().includes(txt) ||
+          r.description?.toLowerCase().includes(txt) ||
+          r.name?.toLowerCase().includes(txt)
+        )
+      )
+        return false;
+      return true;
+    });
+  }
+
+  function setFilter(key, value) {
+    filters[key] = value;
+    tableRows = applyFilters(ngffTable.getRows());
+  }
+
+  function filterText(e) {
+    setFilter("text", e.target.value);
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Sorting
+  // ────────────────────────────────────────────────────────────────
   function toggleSortAscending() {
     sortAscending = !sortAscending;
     ngffTable.sortTable(sortedBy, sortAscending);
   }
-  function handleSort(event) {
-    sortedBy = event.target.value;
-    if (sortedBy === "") {
-      ngffTable.sortTable("index", true);
-    } else {
-      ngffTable.sortTable(sortedBy, sortAscending);
-    }
+
+  function handleSort(e) {
+    sortedBy = e.target.value;
+    ngffTable.sortTable(sortedBy || "index", sortAscending);
   }
 
-  // Main filtering function
-  function filterRows(rows) {
-    if (dimensionFilter !== "") {
-      rows = rows.filter((row) => {
-        return row.dim_count == dimensionFilter;
-      });
-    }
-    if (organismFilter !== "") {
-      rows = rows.filter((row) => {
-        return row.organismId == organismFilter;
-      });
-    }
-    if (imagingModalityFilter != "") {
-      rows = rows.filter((row) => {
-        return row.fbbiId == imagingModalityFilter;
-      });
-    }
-    if (textFilter && textFilter != "") {
-      let txt = textFilter.toLowerCase();
-      rows = rows.filter((row) => {
-        return (
-          row.url.toLowerCase().includes(txt) ||
-          row.description?.toLowerCase().includes(txt) ||
-          row.name?.toLowerCase().includes(txt)
-        );
-      });
-    }
-    return rows;
-  }
+  // ────────────────────────────────────────────────────────────────
+  // Derived options
+  // ────────────────────────────────────────────────────────────────
 
-  function filterDimensions(event) {
-    dimensionFilter = event.target.value || "";
-    tableRows = filterRows(ngffTable.getRows());
-  }
+  $: typeOptions = Array.from(
+    new Set(
+      allRows
+        .filter(
+          (r) =>
+            (!filters.organism || r.organismId === filters.organism) &&
+            (!filters.modality || r.fbbiId === filters.modality) &&
+            (!filters.dimension || String(r.dim_count) === filters.dimension),
+        )
+        .map((r) => String(r.ome_zarr_kind))
+        .filter(Boolean),
+    ),
+  )
+    .sort()
+    .map((v) => ({ value: String(v), label: `${v}` }));
 
-  function filterOrganism(event) {
-    organismFilter = event.target.value || "";
-    tableRows = filterRows(ngffTable.getRows());
-  }
+  $: dimensionOptions = Array.from(
+    new Set(
+      allRows
+        .filter(
+          (r) =>
+            (!filters.organism || r.organismId === filters.organism) &&
+            (!filters.modality || r.fbbiId === filters.modality),
+        )
+        .map((r) => String(r.dim_count))
+        .filter(Boolean),
+    ),
+  )
+    .sort()
+    .map((v) => ({ value: String(v), label: `${v}D` }));
 
-  function filterImagingModality(event) {
-    imagingModalityFilter = event.target.value || "";
-    tableRows = filterRows(ngffTable.getRows());
-  }
+  $: organismOptions = Object.entries($organismStore || {})
+    .filter(([id]) =>
+      allRows.some(
+        (r) =>
+          (!filters.modality || r.fbbiId === filters.modality) &&
+          (!filters.dimension || String(r.dim_count) === filters.dimension) &&
+          r.organismId === id,
+      ),
+    )
+    .map(([id, name]) => ({ value: id, label: name }));
 
-  function filterText(event) {
-    textFilter = event.target.value;
-    tableRows = filterRows(ngffTable.getRows());
-  }
-
-  // Reactive helper lists (Option 1 - cross-filter)
-  $: allRows = ngffTable.getRows();
-
-  // Dynamically derive which dimensions exist at all
-  $: allDimensionValues = Array.from(
-    new Set(allRows.map((r) => String(r.dim_count)).filter(Boolean)),
-  ).sort();
-
-  // Available dimensions given current organism/modality filters
-  $: availableDimensions =
-    allRows.length === 0
-      ? allDimensionValues // show all (none yet means later it fills)
-      : Array.from(
-          new Set(
-            allRows
-              .filter(
-                (r) =>
-                  (organismFilter ? r.organismId === organismFilter : true) &&
-                  (imagingModalityFilter
-                    ? r.fbbiId === imagingModalityFilter
-                    : true),
-              )
-              .map((r) => String(r.dim_count))
-              .filter(Boolean),
-          ),
-        ).sort();
-
-  // Available organisms given current modality and dimension filters
-  $: availableOrganismIds =
-    allRows.length === 0
-      ? Object.values(organismIdsByName)
-      : Array.from(
-          new Set(
-            allRows
-              .filter(
-                (r) =>
-                  (imagingModalityFilter
-                    ? r.fbbiId === imagingModalityFilter
-                    : true) &&
-                  (dimensionFilter
-                    ? String(r.dim_count) === dimensionFilter
-                    : true),
-              )
-              .map((r) => r.organismId)
-              .filter(Boolean),
-          ),
-        );
-
-  // Available imaging modalities given current organism and dimension filters
-  $: availableImagingIds =
-    allRows.length === 0
-      ? Object.values(imagingModalityIdsByName)
-      : Array.from(
-          new Set(
-            allRows
-              .filter(
-                (r) =>
-                  (organismFilter ? r.organismId === organismFilter : true) &&
-                  (dimensionFilter
-                    ? String(r.dim_count) === dimensionFilter
-                    : true),
-              )
-              .map((r) => r.fbbiId)
-              .filter(Boolean),
-          ),
-        );
+  $: modalityOptions = Object.entries($imagingModalityStore || {})
+    .filter(([id]) =>
+      allRows.some(
+        (r) =>
+          (!filters.organism || r.organismId === filters.organism) &&
+          (!filters.dimension || String(r.dim_count) === filters.dimension) &&
+          r.fbbiId === id,
+      ),
+    )
+    .map(([id, name]) => ({ value: id, label: name }));
 </script>
 
 <PreviewPopup />
 
 <main style="--form-select-bg-img: url('{form_select_bg_img}')">
-  <!-- <h1 class="title">OME 2024 NGFF Challenge</h1> -->
-
   <div class="summary">
     <PageTitle />
-    <!-- 
-    
-    TODO: Integrate with BioFileFinder
-    <h3 style="text-align:center">
-      <div style="font-size: 90%">
-        <a href={csvUrl}>metadata.csv</a>
-      </div>
-    </h3> -->
-
     <div class="textInputWrapper">
       <input
-        bind:value={textFilter}
+        bind:value={filters.text}
         on:input={filterText}
         placeholder="Filter by Name or Description"
         name="textFilter"
       />
       <button
         title="Clear Filter"
-        style="visibility: {textFilter !== '' ? 'visible' : 'hidden'}"
-        on:click={filterText}
-        >&times;
-      </button>
+        style="visibility:{filters.text ? 'visible' : 'hidden'}"
+        on:click={() => setFilter("text", "")}>&times;</button
+      >
     </div>
   </div>
 
-  <!-- start left side-bar (moves to top for mobile) -->
   <div class="sidebarContainer">
     <div class="sidebar">
       <div class="filters">
         <div style="white-space: nowrap;">Filter by:</div>
 
-        <div class="selectWrapper">
-          <select bind:value={dimensionFilter} on:change={filterDimensions}>
-            <option value="">
-              {dimensionFilter !== "" ? "All Dimensions" : "Dimension Count"}
-            </option>
-            <hr />
-            {#each allDimensionValues as dim}
-              {#if availableDimensions.includes(dim)}
-                <option value={dim}>{dim}D</option>
-              {/if}
-            {/each}
-          </select>
+        <FilterSelect
+          label="OME-Zarr Type"
+          value={filters.omezarr_type}
+          options={typeOptions}
+          onChange={(v) => setFilter("omezarr_type", v)}
+        />
+        <FilterSelect
+          label="Dimension"
+          value={filters.dimension}
+          options={dimensionOptions}
+          onChange={(v) => setFilter("dimension", v)}
+        />
 
-          <div>
-            <button
-              title="Clear Filter"
-              style="visibility: {dimensionFilter !== ''
-                ? 'visible'
-                : 'hidden'}"
-              on:click={filterDimensions}
-              >&times;
-            </button>
-          </div>
-        </div>
+        <FilterSelect
+          label="Organism"
+          value={filters.organism}
+          options={organismOptions}
+          onChange={(v) => setFilter("organism", v)}
+        />
 
-        <div class="selectWrapper">
-          <select bind:value={organismFilter} on:change={filterOrganism}>
-            <option value=""
-              >{organismFilter == "" ? "Organism" : "All Organisms"}</option
-            >
-            <hr />
-            {#each Object.keys(organismIdsByName)
-              .sort()
-              .filter( (name) => availableOrganismIds.includes(organismIdsByName[name]), ) as name}
-              <option value={organismIdsByName[name]}>{name}</option>
-            {/each}
-          </select>
-          <div>
-            <button
-              title="Clear Filter"
-              style="visibility: {organismFilter !== '' ? 'visible' : 'hidden'}"
-              on:click={filterOrganism}
-              >&times;
-            </button>
-          </div>
-        </div>
-
-        <div class="selectWrapper">
-          <select
-            bind:value={imagingModalityFilter}
-            on:change={filterImagingModality}
-          >
-            <option value=""
-              >{imagingModalityFilter == ""
-                ? "Imaging Modality"
-                : "All Modalities"}</option
-            >
-            <hr />
-            {#each Object.keys(imagingModalityIdsByName)
-              .sort()
-              .filter( (name) => availableImagingIds.includes(imagingModalityIdsByName[name]), ) as name (name)}
-              <option value={imagingModalityIdsByName[name]}>{name}</option>
-            {/each}
-          </select>
-          <div>
-            <button
-              title="Clear Filter"
-              style="visibility: {imagingModalityFilter !== ''
-                ? 'visible'
-                : 'hidden'}"
-              on:click={filterImagingModality}
-              >&times;
-            </button>
-          </div>
-        </div>
+        <FilterSelect
+          label="Imaging Modality"
+          value={filters.modality}
+          options={modalityOptions}
+          onChange={(v) => setFilter("modality", v)}
+        />
 
         <div class="clear"></div>
 
@@ -323,7 +240,7 @@
             <option value="shard_pixels">Shard Size (pixels)</option>
           </select>
           <div>
-            <ColumnSort toggleAscending={toggleSortAscending} {sortAscending} />
+            <ColumnSort {sortAscending} toggleAscending={toggleSortAscending} />
           </div>
         </div>
       </div>
@@ -333,7 +250,7 @@
       <h3 style="margin-left: 15px">
         Showing {tableRows.length} out of {totalZarrs} images
       </h3>
-      <ImageList {tableRows} {textFilter} {sortedBy} />
+      <ImageList {tableRows} textFilter={filters.text} {sortedBy} />
     </div>
   </div>
 </main>
