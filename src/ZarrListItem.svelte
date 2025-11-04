@@ -83,8 +83,6 @@
     // Doesn't seem to abort fetching of chunks
     controller.abort();
   });
-
-  let isShaking = false;
 </script>
 
 <div class="zarr-list-item">

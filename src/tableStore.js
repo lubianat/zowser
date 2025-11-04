@@ -20,46 +20,6 @@ class NgffTable {
     this.csvFiles = [];
   }
 
-
-  addCsv(csvUrl, image_count, plate_count, bytes) {
-    // find the child_csv with the same url
-    let child;
-    for (let csv of this.csvFiles) {
-      if (csv.url === csvUrl) {
-        child = csv;
-        break;
-      }
-      for (let childCsv of csv.child_csv) {
-        if (childCsv.url === csvUrl) {
-          child = childCsv;
-          break;
-        }
-        for (let grandchildCsv of childCsv.child_csv) {
-          if (grandchildCsv.url === csvUrl) {
-            child = grandchildCsv;
-            break;
-          }
-        }
-      }
-    }
-    if (child) {
-      // add to the existing child
-      child.image_count = image_count;
-      child.plate_count = plate_count;
-      child.bytes = bytes;
-      child.child_csv = childCsvRows;
-    } else {
-      child = {
-        url: csvUrl,
-        image_count,
-        plate_count,
-        bytes,
-        child_csv: childCsvRows,
-      };
-      this.csvFiles.push(child);
-    }
-  }
-
   addRows(rows) {
     // Each row is a dict {"url": "http...zarr"}
     rows = rows.map((row, index) => {

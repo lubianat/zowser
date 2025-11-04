@@ -21,6 +21,7 @@
   let showSourceColumn = false;
 
   let filters = {
+    omezarr_type: "",
     dimension: "",
     organism: "",
     modality: "",
@@ -34,21 +35,39 @@
   // Data loading & subscription
   // ────────────────────────────────────────────────────────────────
   if (csvUrl) loadCsv(csvUrl, ngffTable);
+  tableRows = applyFilters(ngffTable.getRows());
 
+  let allRows = [];
+
+  // Single consolidated subscription
   ngffTable.subscribe((rows) => {
+    console.log("ngffTable updated, row count:", rows.length);
+    console.log("First few rows:", rows.slice(0, 3));
+
+    allRows = rows; // This ensures allRows is always in sync
     tableRows = applyFilters(rows);
     totalZarrs = rows.length;
     totalBytes = rows.reduce((acc, r) => acc + (parseInt(r.written) || 0), 0);
     showSourceColumn = rows.some((r) => r.source);
   });
 
+  // Add debug to derived options
+  $: console.log("allRows count:", allRows?.length);
+  $: console.log("typeOptions:", typeOptions);
+  $: console.log("dimensionOptions:", dimensionOptions);
+  $: console.log("Current filters:", filters);
+
   // ────────────────────────────────────────────────────────────────
   // Filtering
   // ────────────────────────────────────────────────────────────────
   function applyFilters(rows) {
-    console.log("Applying filters");
-    console.log(filters);
-    const { dimension, organism, modality, text } = filters;
+    const {
+      omezarr_type: ome_zarr_kind,
+      dimension,
+      organism,
+      modality,
+      text,
+    } = filters;
     const txt = text.toLowerCase();
     if (dimension == "" && organism == "" && modality == "" && text == "") {
       return rows;
@@ -58,6 +77,8 @@
       if (dimension && String(r.dim_count) !== dimension) return false;
       if (organism && r.organismId !== organism) return false;
       if (modality && r.fbbiId !== modality) return false;
+      if (ome_zarr_kind && r.ome_zarr_kind !== ome_zarr_kind) return false;
+
       if (
         txt &&
         !(
@@ -96,7 +117,22 @@
   // ────────────────────────────────────────────────────────────────
   // Derived options
   // ────────────────────────────────────────────────────────────────
-  $: allRows = ngffTable.getRows();
+
+  $: typeOptions = Array.from(
+    new Set(
+      allRows
+        .filter(
+          (r) =>
+            (!filters.organism || r.organismId === filters.organism) &&
+            (!filters.modality || r.fbbiId === filters.modality) &&
+            (!filters.dimension || String(r.dim_count) === filters.dimension),
+        )
+        .map((r) => String(r.ome_zarr_kind))
+        .filter(Boolean),
+    ),
+  )
+    .sort()
+    .map((v) => ({ value: String(v), label: `${v}` }));
 
   $: dimensionOptions = Array.from(
     new Set(
@@ -112,6 +148,7 @@
   )
     .sort()
     .map((v) => ({ value: String(v), label: `${v}D` }));
+
   $: organismOptions = Object.entries($organismStore || {})
     .filter(([id]) =>
       allRows.some(
@@ -160,6 +197,12 @@
       <div class="filters">
         <div style="white-space: nowrap;">Filter by:</div>
 
+        <FilterSelect
+          label="OME-Zarr Type"
+          value={filters.omezarr_type}
+          options={typeOptions}
+          onChange={(v) => setFilter("omezarr_type", v)}
+        />
         <FilterSelect
           label="Dimension"
           value={filters.dimension}
