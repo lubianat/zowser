@@ -61,15 +61,15 @@
   // Filtering
   // ────────────────────────────────────────────────────────────────
   function applyFilters(rows) {
-    const {
-      omezarr_type: ome_zarr_kind,
-      dimension,
-      organism,
-      modality,
-      text,
-    } = filters;
+    const { ome_zarr_kind, dimension, organism, modality, text } = filters;
     const txt = text.toLowerCase();
-    if (dimension == "" && organism == "" && modality == "" && text == "") {
+    if (
+      ome_zarr_kind == "" &&
+      dimension == "" &&
+      organism == "" &&
+      modality == "" &&
+      text == ""
+    ) {
       return rows;
     }
 
@@ -199,9 +199,9 @@
 
         <FilterSelect
           label="OME-Zarr Type"
-          value={filters.omezarr_type}
+          value={filters.ome_zarr_kind}
           options={typeOptions}
-          onChange={(v) => setFilter("omezarr_type", v)}
+          onChange={(v) => setFilter("ome_zarr_kind", v)}
         />
         <FilterSelect
           label="Dimension"
