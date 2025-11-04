@@ -21,6 +21,7 @@
   let showSourceColumn = false;
 
   let filters = {
+    collection: "",
     ome_zarr_kind: "",
     dimension: "",
     organism: "",
@@ -58,9 +59,11 @@
   // Filtering
   // ────────────────────────────────────────────────────────────────
   function applyFilters(rows) {
-    const { ome_zarr_kind, dimension, organism, modality, text } = filters;
+    const { collection, ome_zarr_kind, dimension, organism, modality, text } =
+      filters;
     const txt = text.toLowerCase();
     if (
+      collection == "" &&
       ome_zarr_kind == "" &&
       dimension == "" &&
       organism == "" &&
@@ -75,6 +78,7 @@
       if (organism && r.organismId !== organism) return false;
       if (modality && r.fbbiId !== modality) return false;
       if (ome_zarr_kind && r.ome_zarr_kind !== ome_zarr_kind) return false;
+      if (collection && r.collection !== collection) return false;
 
       if (
         txt &&
@@ -122,6 +126,12 @@
     .sort()
     .map((v) => ({ value: String(v), label: `${v}` }));
 
+  $: collectionOptions = Array.from(
+    new Set(tableRows.map((r) => String(r.collection)).filter(Boolean)),
+  )
+    .sort()
+    .map((v) => ({ value: String(v), label: `${v}` }));
+
   $: dimensionOptions = Array.from(
     new Set(tableRows.map((r) => String(r.dim_count)).filter(Boolean)),
   )
@@ -137,10 +147,11 @@
     .map(([id, name]) => ({ value: id, label: name }));
 
   $: filterOptions = {
-    ome_zarr_kind: typeOptions,
     dimension: dimensionOptions,
     organism: organismOptions,
     modality: modalityOptions,
+    collection: collectionOptions,
+    ome_zarr_kind: typeOptions,
   };
 </script>
 

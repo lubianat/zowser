@@ -34,12 +34,6 @@ export async function getViewConfig() {
         }
       }
 
-      for (const item of cfg.extended_samples || []) {
-        if (item && item.collection) {
-          const { collection, ...rest } = item;
-          overrides.set((collection || "").trim(), rest);
-        }
-      }
       console.log("Overrides:", { overrides });
       // allow both samples + extended
       const allowed = new Set([...whitelist, ...overrides.keys()]);
@@ -91,7 +85,12 @@ export function loadCsv(csvUrl, ngffTable, parentRow = {}) {
         .filter(predicate)
         .map((row) => {
           const patch = overrides.get((row.url || "").trim());
-          return patch ? Object.assign(row, patch) : row;
+          const updatedRow = patch ? Object.assign(row, patch) : row;
+          // Set default collection if not defined
+          if (!updatedRow.collection) {
+            updatedRow.collection = "none"; // or whatever default you want
+          }
+          return updatedRow;
         });
 
       const unique = {};
