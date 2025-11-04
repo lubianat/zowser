@@ -21,7 +21,7 @@
   let showSourceColumn = false;
 
   let filters = {
-    omezarr_type: "",
+    ome_zarr_kind: "",
     dimension: "",
     organism: "",
     modality: "",
@@ -95,6 +95,7 @@
   function setFilter(key, value) {
     filters[key] = value;
     tableRows = applyFilters(ngffTable.getRows());
+    console.log({ tableRows });
   }
 
   function filterText(e) {
@@ -119,56 +120,23 @@
   // ────────────────────────────────────────────────────────────────
 
   $: typeOptions = Array.from(
-    new Set(
-      allRows
-        .filter(
-          (r) =>
-            (!filters.organism || r.organismId === filters.organism) &&
-            (!filters.modality || r.fbbiId === filters.modality) &&
-            (!filters.dimension || String(r.dim_count) === filters.dimension),
-        )
-        .map((r) => String(r.ome_zarr_kind))
-        .filter(Boolean),
-    ),
+    new Set(tableRows.map((r) => String(r.ome_zarr_kind)).filter(Boolean)),
   )
     .sort()
     .map((v) => ({ value: String(v), label: `${v}` }));
 
   $: dimensionOptions = Array.from(
-    new Set(
-      allRows
-        .filter(
-          (r) =>
-            (!filters.organism || r.organismId === filters.organism) &&
-            (!filters.modality || r.fbbiId === filters.modality),
-        )
-        .map((r) => String(r.dim_count))
-        .filter(Boolean),
-    ),
+    new Set(tableRows.map((r) => String(r.dim_count)).filter(Boolean)),
   )
     .sort()
     .map((v) => ({ value: String(v), label: `${v}D` }));
 
   $: organismOptions = Object.entries($organismStore || {})
-    .filter(([id]) =>
-      allRows.some(
-        (r) =>
-          (!filters.modality || r.fbbiId === filters.modality) &&
-          (!filters.dimension || String(r.dim_count) === filters.dimension) &&
-          r.organismId === id,
-      ),
-    )
+    .filter(([id]) => tableRows.some((r) => r.organismId === id))
     .map(([id, name]) => ({ value: id, label: name }));
 
   $: modalityOptions = Object.entries($imagingModalityStore || {})
-    .filter(([id]) =>
-      allRows.some(
-        (r) =>
-          (!filters.organism || r.organismId === filters.organism) &&
-          (!filters.dimension || String(r.dim_count) === filters.dimension) &&
-          r.fbbiId === id,
-      ),
-    )
+    .filter(([id]) => tableRows.some((r) => r.fbbiId === id))
     .map(([id, name]) => ({ value: id, label: name }));
 </script>
 
