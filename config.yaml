@@ -37,3 +37,7 @@ extended_samples:
     description: 6001240_labels.zarr labels. They are also shown in an OME-Zarr format. Labels do not correspond to image acquisions, but draw regions of interest in the same dimensions as the original image.
     url: https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.5/idr0062A/6001240_labels.zarr/labels/0
     collection: TEST
+collections:
+  TEST:
+    name: TEST
+    url: https://example.org

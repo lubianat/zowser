@@ -39,11 +39,11 @@ export async function getViewConfig() {
       const allowed = new Set([...whitelist, ...overrides.keys()]);
       const predicate = (row) => allowed.has((row.url || "").trim());
 
-      return { predicate, overrides };
+      return { predicate, overrides, cfg };
     } catch (err) {
       console.warn("No YAML view config found, showing all rows.", err);
       // fallback: no filtering, no overrides
-      return { predicate: () => true, overrides: new Map() };
+      return { predicate: () => true, overrides: new Map(), };
     }
   })();
 
@@ -80,7 +80,9 @@ export function loadCsv(csvUrl, ngffTable, parentRow = {}) {
 
 
       // ───── apply whitelist + overrides from YAML (optional) ─────
-      const { predicate, overrides } = await getViewConfig();
+      const { predicate, overrides, cfg } = await getViewConfig();
+
+
       zarrUrlRows = dataRows
         .filter(predicate)
         .map((row) => {
@@ -98,6 +100,17 @@ export function loadCsv(csvUrl, ngffTable, parentRow = {}) {
         if (!unique[row.url]) unique[row.url] = row;
       });
       zarrUrlRows = Object.values(unique);
+
+      console.log({ cfg });
+      const collections = cfg.collections;
+
+      Object.values(collections).forEach((c) => {
+        zarrUrlRows.forEach((row) => {
+          if (row.collection === c.name) {
+            row.collection_url = c.url;
+          }
+        });
+      });
 
       const plate_count = zarrUrlRows.reduce(
         (acc, r) => (r.wells ? acc + 1 : acc),
