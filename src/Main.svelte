@@ -52,10 +52,7 @@
   });
 
   // Add debug to derived options
-  $: console.log("allRows count:", allRows?.length);
-  $: console.log("typeOptions:", typeOptions);
-  $: console.log("dimensionOptions:", dimensionOptions);
-  $: console.log("Current filters:", filters);
+  $: console.log({ tableRows });
 
   // ────────────────────────────────────────────────────────────────
   // Filtering
@@ -138,6 +135,13 @@
   $: modalityOptions = Object.entries($imagingModalityStore || {})
     .filter(([id]) => tableRows.some((r) => r.fbbiId === id))
     .map(([id, name]) => ({ value: id, label: name }));
+
+  $: filterOptions = {
+    ome_zarr_kind: typeOptions,
+    dimension: dimensionOptions,
+    organism: organismOptions,
+    modality: modalityOptions,
+  };
 </script>
 
 <PreviewPopup />
@@ -165,33 +169,14 @@
       <div class="filters">
         <div style="white-space: nowrap;">Filter by:</div>
 
-        <FilterSelect
-          label="OME-Zarr Type"
-          value={filters.ome_zarr_kind}
-          options={typeOptions}
-          onChange={(v) => setFilter("ome_zarr_kind", v)}
-        />
-        <FilterSelect
-          label="Dimension"
-          value={filters.dimension}
-          options={dimensionOptions}
-          onChange={(v) => setFilter("dimension", v)}
-        />
-
-        <FilterSelect
-          label="Organism"
-          value={filters.organism}
-          options={organismOptions}
-          onChange={(v) => setFilter("organism", v)}
-        />
-
-        <FilterSelect
-          label="Imaging Modality"
-          value={filters.modality}
-          options={modalityOptions}
-          onChange={(v) => setFilter("modality", v)}
-        />
-
+        {#each Object.entries(filterOptions) as [key, options]}
+          <FilterSelect
+            label={key}
+            value={filters[key]}
+            {options}
+            onChange={(v) => setFilter(key, v)}
+          />
+        {/each}
         <div class="clear"></div>
 
         <div>Sort by:</div>

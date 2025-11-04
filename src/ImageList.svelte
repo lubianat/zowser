@@ -11,7 +11,7 @@
   }
 
   let listContainer;
-	$: innerHeight = 0;
+  $: innerHeight = 0;
 
   let pageScrollY = 0;
   let prevScrollOffset = 0;
@@ -31,25 +31,32 @@
 
     prevScrollOffset = event.detail.offset;
   }
-</script>
 
+  $: rowsKey = (tableRows ?? []).map((r) => r?.url ?? r?.index ?? "").join("|");
+</script>
 
 <svelte:window bind:innerHeight bind:scrollY={pageScrollY} />
 
 <!-- We make the scrollable viewport fill the full height of the page -->
-<div bind:this={listContainer} style:height="{innerHeight}px" class="imageListContainer">
-  <VirtualList
-    width="100%"
-    height={innerHeight}
-    itemCount={tableRows.length}
-    itemSize={160}
-    getKey={getItemKey}
-    on:afterScroll={afterScroll}
-  >
-    <div slot="item" let:index let:style {style} class="row">
-      <ZarrListItem rowData={tableRows[index]} {textFilter} {sortedBy} />
-    </div>
-  </VirtualList>
+<div
+  bind:this={listContainer}
+  style:height="{innerHeight}px"
+  class="imageListContainer"
+>
+  {#key rowsKey}
+    <VirtualList
+      width="100%"
+      height={innerHeight}
+      itemCount={tableRows.length}
+      itemSize={160}
+      getKey={getItemKey}
+      on:afterScroll={afterScroll}
+    >
+      <div slot="item" let:index let:style {style} class="row">
+        <ZarrListItem rowData={tableRows[index]} {textFilter} {sortedBy} />
+      </div>
+    </VirtualList>
+  {/key}
 </div>
 
 <style>
