@@ -4,12 +4,44 @@
 
 import Papa from "papaparse";
 
-
-// Core numeric and color helpers (Node-safe)
-export * from "./util_core.js";
-
 export const SAMPLES_HOME =
   "https://raw.githubusercontent.com/ome/ome2024-ngff-challenge/main/samples/ngff_samples.csv";
+
+
+
+export async function loadMultiscales(url, signal) {
+  let zarrData;
+  try {
+    const res = await fetch(`${url}/zarr.json`, { signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}/zarr.json`);
+    zarrData = await res.json();
+  } catch (err) {
+    console.warn(`[ngffLoader] ${url}/zarr.json not found or invalid`, err.message);
+    return [undefined, url];
+  }
+
+  const attrs = zarrData?.attributes?.ome;
+  if (!attrs) return [undefined, url];
+
+  // Plain image
+  if (attrs.multiscales) return [attrs, url];
+
+  // Plate-style (multi-well)
+  if (attrs.plate) {
+    const well = attrs.plate.wells[0];
+    const imgPath = `${url}/${well.path}/0`;
+    const [msData, msUrl] = await loadMultiscales(imgPath, signal);
+    return [msData, msUrl, attrs.plate];
+  }
+
+  // Bioformats2raw layout
+  if (attrs["bioformats2raw.layout"]) {
+    const bf2rawUrl = `${url}/0`;
+    return await loadMultiscales(bf2rawUrl, signal);
+  }
+
+  return [undefined, url];
+}
 
 import YAML from "yaml";
 

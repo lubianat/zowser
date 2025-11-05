@@ -1,6 +1,6 @@
 import { writable, get } from "svelte/store";
 import { organismStore, imagingModalityStore } from "./ontologyStore";
-import { loadMultiscales } from "./thumbnailGenerator.js";
+import { loadMultiscales } from "./util.js";
 export { loadMultiscales };
 
 

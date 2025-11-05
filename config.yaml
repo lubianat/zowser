@@ -28,16 +28,35 @@ extended_samples:
   - name: HeLa cells
     description: Small dataset, 2 channels. HeLa cells showing click chemistry and immunofluorescence. Note that metadata shows TaxonID 9601, likely a typo. Correct entry should be for human, 9606.
     url: https://uk1s3.embassy.ebi.ac.uk/ebi-ngff-challenge-2024/4ffaeed2-fa70-4907-820f-8a96ef683095.zarr
-    collection: TEST
   - name: Riccia sorocarpa - photograph
     description: From a series of bryophyte data on IDR, it shows how OME-Zarr can fit other kinds of images beyond microscopy.
     url: https://uk1s3.embassy.ebi.ac.uk/idr/share/ome2024-ngff-challenge/idr0157/Riccia sorocarpa SWE/IMG_0069 Riccia sorocarpa stature.ome.zarr
-    collection: TEST_2
   - name: IDR image with labels
     description: 6001240_labels.zarr labels. They are also shown in an OME-Zarr format. Labels do not correspond to image acquisions, but draw regions of interest in the same dimensions as the original image.
     url: https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.5/idr0062A/6001240_labels.zarr/labels/0
-    collection: TEST
+  - name: Sample Plankton image (TRaversing European Coastlines, TREC) 1
+    description: (OME-Zarr v0.4, unsupported) 2D light microscopy images of fresh plankton samples collected during TREC (oscopy images of fresh plankton samples collected during TREC expedition) expedition
+    url: https://s3.embl.de/live-confocal-trec-super-plankton/TREC_STOP_12_Tallinn/LSM900_20230616/PK2_TAL_10to40_20230616_PM_01_20xcamera_16.ome.zarr/PK2_TAL_10to40_20230616_PM_01_20xcamera.zarr
+    collection: TREC
+  - name: Sample Plankton image (TRaversing European Coastlines, TREC) 2
+    description: (OME-Zarr v0.4, unsupported) 2D light microscopy images of fresh plankton samples collected during TREC (oscopy images of fresh plankton samples collected during TREC expedition) expedition
+    url: https://s3.embl.de/live-confocal-trec-super-plankton/TREC_STOP_35_Naples/LSM900_20240501/PK2_NAP_150to500_20240501_AM_01_33.ome.zarr/PK2_NAP_150to500_20240501_AM_01.zarr
+    collection: TREC
+  - name: SciVis stag beetle
+    description: sample from the SciVis dataset
+    url: https://ome-zarr-scivis.s3.us-east-1.amazonaws.com/v0.5/96x2/stag_beetle.ome.zarr
+    collection: SciVis
+  - name: SciVis aneurism
+    description: sample from the SciVis dataset
+    url: https://ome-zarr-scivis.s3.us-east-1.amazonaws.com/v0.5/96x2/aneurism.ome.zarr
+    collection: SciVis
 collections:
   TEST:
     name: TEST
     url: https://example.org
+  TREC:
+    name: TREC
+    url: https://forum.image.sc/t/ome-zarr-images-of-planetary-biology-projects-submitted-to-bioimage-archive/117372
+  SciVis:
+    name: SciVis
+    url: https://registry.opendata.aws/ome-zarr-open-scivis/
