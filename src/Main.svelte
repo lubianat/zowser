@@ -293,7 +293,7 @@
     flex: 0 0 20px;
     cursor: pointer;
   }
-  .selectWrapper button,
+
   .textInputWrapper button {
     background: transparent;
     border: none;
@@ -311,13 +311,6 @@
     top: -1px;
   }
 
-  .sources {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 5px;
-    max-width: 1330px;
-    margin: 0 auto;
-  }
   .filters {
     gap: 10px;
     margin: 5px 0;

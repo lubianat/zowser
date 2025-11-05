@@ -1,5 +1,4 @@
 <script>
-  import omeMainNav from "/ome-main-nav.svg";
   import githubLogo from "/github-mark-white.svg";
   let base = import.meta.env.BASE_URL;
 
@@ -42,17 +41,12 @@
     gap: 5px;
   }
 
-  h2 {
-    color: white;
-    font-weight: 300;
-    margin: 5px 15px;
-  }
   a {
     color: white;
     text-decoration: none;
     display: block;
   }
-  .logolink,
+
   img {
     height: 30px;
   }
