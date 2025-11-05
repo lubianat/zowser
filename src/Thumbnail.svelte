@@ -1,18 +1,18 @@
 <script>
-  import { onMount, onDestroy, tick } from "svelte";
-  import { generateThumbnail } from "./thumbnailGenerator.js";
+  import { onMount, onDestroy } from "svelte";
+  import * as omezarr from "ome-zarr.js";
 
   export let source;
-  export let attrs;
-  export let thumbDatasetIndex = undefined;
   export let thumbAspectRatio = 1;
   export let cssSize = 120;
   export let max_size = 512;
 
   const BASE = import.meta.env.BASE_URL;
 
-  let canvas;
   let imgEl;
+  let showSpinner = true;
+  // mode: 'none' | 'cached' | 'live'
+  let mode = "none";
 
   // initial css box respecting aspect ratio
   let width = cssSize;
@@ -21,10 +21,6 @@
   else if (thumbAspectRatio < 1) width = height * thumbAspectRatio;
   let cssWidth = width;
   let cssHeight = height;
-
-  let showSpinner = true;
-  // mode: 'none' | 'cached' | 'live'
-  let mode = "none";
 
   const controller = new AbortController();
 
@@ -41,18 +37,17 @@
 
   async function tryCachedFirst() {
     const thumbName = basenameFromSource(source);
-    console.log(BASE);
     const cachedUrl = `${BASE}thumbs/${thumbName}.jpg`;
 
-    // Preload without touching DOM; switch atomically on load
     const probe = new Image();
     probe.decoding = "async";
     probe.referrerPolicy = "no-referrer";
+
     return new Promise((resolve) => {
       probe.onload = () => {
         mode = "cached";
         showSpinner = false;
-        imgEl.src = cachedUrl; // show cached immediately
+        if (imgEl) imgEl.src = cachedUrl;
         resolve(true);
       };
       probe.onerror = () => resolve(false);
@@ -60,44 +55,28 @@
     });
   }
 
-  async function loadFromZarr() {
-    mode = "live"; // ensure canvas is visible under spinner
-
-    const result = await generateThumbnail(
-      source,
-      attrs,
-      thumbDatasetIndex,
-      max_size,
-      controller.signal,
-    );
-
-    if (!result) {
-      // Keep spinner indefinitely (requested behavior).
-      console.warn("Thumbnail generation skipped/failed:", source);
-      return;
+  async function loadWithOmeZarr() {
+    try {
+      console.log(`Loading thumbnail for ${source} with ome-zarr.js`);
+      const dataUrl = await omezarr.renderThumbnail(
+        source,
+        cssSize,
+        true,
+        max_size,
+      );
+      mode = "live";
+      if (imgEl) imgEl.src = dataUrl;
+      showSpinner = false;
+    } catch (err) {
+      // Keep spinner indefinitely (your preferred failure mode)
+      console.warn("Thumbnail generation failed:", err);
     }
-
-    const { rgb, width: w, height: h } = result;
-    width = w;
-    height = h;
-
-    // Fit within cssSize while preserving aspect ratio
-    let scale = Math.max(width, height) / cssSize;
-    if (scale < 1) scale = 1;
-    cssWidth = width / scale;
-    cssHeight = height / scale;
-
-    await tick(); // ensure canvas is in the DOM and sized
-    const ctx = canvas.getContext("2d");
-    ctx.putImageData(new ImageData(rgb, width, height), 0, 0);
-    showSpinner = false;
   }
 
   onMount(async () => {
     const hasCached = await tryCachedFirst();
     if (!hasCached) {
-      // spinner remains visible while generating
-      await loadFromZarr();
+      await loadWithOmeZarr();
     }
   });
 
@@ -105,26 +84,16 @@
 </script>
 
 <div
-  class="canvasWrapper"
+  class="thumbWrapper"
   style="width:{cssWidth}px; height:{cssHeight}px;"
   class:spinner={showSpinner}
 >
-  <!-- Cached image (hidden until confirmed loaded) -->
   <img
     bind:this={imgEl}
-    class:hidden={mode !== "cached"}
+    class:hidden={mode === "none"}
     style="width:{cssWidth}px; height:{cssHeight}px; object-fit:cover;"
     alt=""
-    aria-hidden={mode !== "cached"}
-  />
-
-  <!-- Live NGFF canvas (always present; spinner overlays until drawn) -->
-  <canvas
-    bind:this={canvas}
-    class:hidden={mode !== "live"}
-    style="width:{cssWidth}px; height:{cssHeight}px; background-color: lightgrey;"
-    {width}
-    {height}
+    aria-hidden={mode === "none"}
   />
 </div>
 
@@ -132,11 +101,10 @@
   .hidden {
     display: none;
   }
-
-  .canvasWrapper {
+  .thumbWrapper {
     position: relative;
   }
-  canvas {
+  img {
     box-shadow: 5px 4px 10px -5px #737373;
   }
 
@@ -145,7 +113,6 @@
       transform: rotate(360deg);
     }
   }
-
   .spinner::after {
     content: "";
     box-sizing: border-box;

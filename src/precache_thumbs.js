@@ -1,15 +1,31 @@
 #!/usr/bin/env node
 /**
- * Pre-cache thumbnails for NGFF .zarr images
- * Uses the same Thumbnail logic as in the Svelte app.
+ * Pre-cache thumbnails for NGFF .zarr images using ome-zarr.js directly (Node).
+ * - Polyfills a minimal DOM canvas for ome-zarr.js
+ * - Renders PNG data URLs, then converts to JPEG on save
  */
 
 import fs from "fs";
 import path from "path";
-import { createCanvas, ImageData } from "canvas";
 import { fileURLToPath } from "url";
 import { performance } from "perf_hooks";
-import { generateThumbnail, loadMultiscales } from "./thumbnailGenerator.js";
+import { createCanvas, Image, ImageData } from "canvas";
+import * as omezarr from "ome-zarr.js";
+
+// ────────────────────────────────────────────────────────────────
+// Minimal DOM/canvas polyfill for ome-zarr.js (Node environment)
+global.ImageData = ImageData;
+global.document = {
+    createElement: (name) => {
+        if (name !== "canvas") {
+            throw new Error(`Unsupported element requested: ${name}`);
+        }
+        // Return a node-canvas instance; width/height will be set later
+        const cnv = createCanvas(1, 1);
+        // node-canvas already provides getContext("2d"), toDataURL, etc.
+        return cnv;
+    },
+};
 
 // ────────────────────────────────────────────────────────────────
 // Setup paths
@@ -44,6 +60,29 @@ let skipped = 0;
 let errors = 0;
 let saved = 0;
 
+// Settings (match your app defaults)
+const TARGET_SIZE = 120; // desired longest side
+const AUTO_BOOST = true;
+const MAX_SIZE = 512; // if smallest level > MAX_SIZE^2, ome-zarr throws
+
+// ────────────────────────────────────────────────────────────────
+// Helpers
+function dataUrlToJPEGBuffer(dataUrl, { quality = 0.85 } = {}) {
+    // dataUrl is PNG from ome-zarr.js; draw to canvas and encode JPEG
+    const pngBuf = Buffer.from(dataUrl.split(",")[1], "base64");
+    const img = new Image();
+    img.src = pngBuf;
+
+    const w = img.width;
+    const h = img.height;
+    const canvas = createCanvas(w, h);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+
+    // node-canvas: encode to JPEG
+    return canvas.toBuffer("image/jpeg", { quality });
+}
+
 // ────────────────────────────────────────────────────────────────
 // Main loop
 for (const [i, line] of csvLines.entries()) {
@@ -64,28 +103,18 @@ for (const [i, line] of csvLines.entries()) {
     const t0 = performance.now();
 
     try {
-        const [attrs, msUrl] = await loadMultiscales(zarrUrl);
-        if (!attrs) {
-            console.warn(`⚠️  No multiscales found for ${zarrUrl}`);
-            errors++;
-            continue;
-        }
+        // Direct call into ome-zarr.js; it will resolve multiscale/axes/etc.
+        // Throws if the lowest-resolution plane is larger than MAX_SIZE^2.
+        const dataUrl = await omezarr.renderThumbnail(zarrUrl, TARGET_SIZE, AUTO_BOOST, MAX_SIZE);
 
-        const thumb = await generateThumbnail(msUrl, attrs);
-        if (!thumb) {
-            console.warn(`⚠️  Skipped (no data) for ${zarrUrl}`);
-            errors++;
-            continue;
-        }
+        const jpegBuf = dataUrlToJPEGBuffer(dataUrl, { quality: 0.85 });
+        fs.writeFileSync(outFile, jpegBuf);
 
-        const { rgb, width, height } = thumb;
-        const canvas = createCanvas(width, height);
-        const ctx = canvas.getContext("2d");
-        ctx.putImageData(new ImageData(rgb, width, height), 0, 0);
-
-        fs.writeFileSync(outFile, canvas.toBuffer("image/jpeg", { quality: 0.85 }));
+        // Grab w/h for logging by decoding once (cheap)
+        const img = new Image();
+        img.src = Buffer.from(dataUrl.split(",")[1], "base64");
         const dt = (performance.now() - t0).toFixed(0);
-        console.log(`✅  Saved ${path.basename(outFile)} (${width}×${height}) in ${dt} ms`);
+        console.log(`✅  Saved ${path.basename(outFile)} (${img.width}×${img.height}) in ${dt} ms`);
         saved++;
     } catch (err) {
         console.warn(`❌ [${i + 1}] Error: ${zarrUrl}`);
