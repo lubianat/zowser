@@ -4,6 +4,8 @@ A lighweight browser for curated Zarr collections based on the OME-NGFF 2024 cha
 
 [https://ome.github.io/ome2024-ngff-challenge/](https://ome.github.io/ome2024-ngff-challenge/).
 
+See also the similar in nature (but more developed) https://github.com/JaneliaSciComp/zarrcade
+
 ## General idea
 
 * general idea:
