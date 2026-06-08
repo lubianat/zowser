@@ -4,10 +4,12 @@ Zowser separates the gallery logic in the [OME-NGFF 2024 challenge](https://gith
 
 It is similar in spirit and purpose to other open-source OME-Zarr galleries, like: 
 
-    * [Zallery](https://github.com/openssbd/zallery)
-    * [Zarrcade](https://github.com/JaneliaSciComp/zarrcade)
+* [Zallery](https://github.com/openssbd/zallery)
+* [Zarrcade](https://github.com/JaneliaSciComp/zarrcade)
+  
 and to some extent, with the "sharing" part of 
-    * [BioFileFinder](https://bff.allencell.org/) 
+
+* [BioFileFinder](https://bff.allencell.org/) 
 
 Each of them has slightly different user experiences, use cases, tech stacks and UI. 
 
