@@ -120,9 +120,9 @@ export function loadCsv(csvUrl, ngffTable, parentRow = {}) {
         .map((row) => {
           const patch = overrides.get((row.url || "").trim());
           const updatedRow = patch ? Object.assign(row, patch) : row;
-          // Set default collection if not defined
-          if (!updatedRow.collection) {
-            updatedRow.collection = "none"; // or whatever default you want
+          // Set default catalog if not defined
+          if (!updatedRow.catalog) {
+            updatedRow.catalog = "none"; // or whatever default you want
           }
           return updatedRow;
         });
@@ -134,12 +134,12 @@ export function loadCsv(csvUrl, ngffTable, parentRow = {}) {
       zarrUrlRows = Object.values(unique);
 
       console.log({ cfg });
-      const collections = cfg.collections;
+      const catalogs = cfg.catalogs;
 
-      Object.values(collections).forEach((c) => {
+      Object.values(catalogs).forEach((c) => {
         zarrUrlRows.forEach((row) => {
-          if (row.collection === c.name) {
-            row.collection_url = c.url;
+          if (row.catalog === c.name) {
+            row.catalog_url = c.url;
           }
         });
       });
