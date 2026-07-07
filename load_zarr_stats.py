@@ -130,42 +130,69 @@ def get_chunk_and_shard_shapes(zarray):
 
 
 # Based on https://github.com/ome/ome-ngff-validator/blob/dfa175df9a20d9c2aaf576762472272fe393a3e8/src/JsonValidator/MultiscaleArrays/ZarrArray/index.svelte#L33
+# Simplified to only read the first level's zarr.json and estimate total bytes from scales, without fetching each level.
 def get_array_values(zarr_url, multiscales):
-    # we want chunks, shards, shape from first resolution level...
-    # but we want total 'written' bytes for all resolutions...
-    dict_data = {}
+    """
+    Read ONLY the first (full-resolution) dataset's zarr.json to get real
+    shape/chunks/shards/dtype, then estimate total pyramid bytes analytically
+    from the OME coordinateTransformations scales — no per-level fetches.
 
-    # Hardcode to use only the first multiscales
-    # See https://ngff.openmicroscopy.org/rfc/6/index.html
-    for ds in multiscales[0]["datasets"]:
+    Hard coded to OME-Zarr Version 0.5.
+    """
+    datasets = multiscales[0]["datasets"]
 
-        array_url = zarr_url + "/" + ds["path"]
-        array_json = load_json(array_url + "/zarr.json")
+    # --- fetch level 0 only ---
+    level0 = datasets[0]
+    array_url = zarr_url + "/" + level0["path"]
+    array_json = load_json(array_url + "/zarr.json")
 
-        if len(dict_data) == 0:
-            dict_data = get_chunk_and_shard_shapes(array_json)
-            dict_data["written"] = 0
+    dict_data = get_chunk_and_shard_shapes(array_json)
+    dict_data["dimension_names"] = array_json.get("dimension_names", "")
 
-        # Get dtype (v3: 'data_type', not supporting v2: 'dtype')
-        array_data_type = array_json["data_type"]
-        array_shape = array_json["shape"]
-        if "int" in array_data_type or "float" in array_data_type:
-            m = re.search(r"(\d+)", array_data_type)
-            if m:
-                bytes_per_pixel = int(m.group(1)) // 8
-            else:
-                # fallback for e.g. 'u1', 'i2', 'f4', etc.
-                for n in [1, 2, 4, 8]:
-                    if str(n) in array_data_type:
-                        bytes_per_pixel = n
-                        break
+    array_data_type = array_json["data_type"]  # v3 only
+    level0_shape = array_json["shape"]
 
-        pixels = math.prod(array_shape)
-        total_bytes = bytes_per_pixel * pixels
+    # bytes per pixel from dtype string (e.g. 'uint8', 'float32')
+    bytes_per_pixel = None
+    m = re.search(r"(\d+)", array_data_type)
+    if m:
+        bytes_per_pixel = int(m.group(1)) // 8
+    else:
+        for n in [1, 2, 4, 8]:
+            if str(n) in array_data_type:
+                bytes_per_pixel = n
+                break
+    if not bytes_per_pixel:
+        log.warning(
+            f"Could not infer bytes/pixel from dtype '{array_data_type}', assuming 1"
+        )
+        bytes_per_pixel = 1
 
-        dict_data["written"] = dict_data["written"] + total_bytes
-        dict_data["dimension_names"] = array_json.get("dimension_names", "")
+    level0_pixels = math.prod(level0_shape)
 
+    # --- base scale = level 0's scale (fallback to ones if absent) ---
+    def scale_of(ds):
+        for ct in ds.get("coordinateTransformations", []):
+            if ct.get("type") == "scale":
+                return ct.get("scale")
+        return None
+
+    base_scale = scale_of(level0) or [1.0] * len(level0_shape)
+
+    # --- estimate total pixels across all levels from scale ratios ---
+    total_pixels = 0.0
+    for ds in datasets:
+        s = scale_of(ds)
+        if s is None:
+            factor = 1.0  # unknown scale → assume same size as level 0
+        else:
+            # downsample factor per axis = this level's voxel size / level 0's
+            factor = math.prod(a / b for a, b in zip(s, base_scale) if b)
+        if factor <= 0:
+            factor = 1.0
+        total_pixels += level0_pixels / factor
+
+    dict_data["written"] = int(total_pixels * bytes_per_pixel)
     return dict_data
 
 
