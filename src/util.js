@@ -170,6 +170,47 @@ export async function getJson(url) {
   return await fetch(url).then((r) => r.json());
 }
 
+// Thumbnails convention v1 (zarr-conventions). Returns a URL for the best
+// thumbnail (largest edge <= maxEdge, preferring JPEG) or null if the group
+// doesn't declare/carry the convention.
+// ponytail: convention detected by name/uuid/url substring per spec; only one is required.
+export async function thumbnailFromConvention(source, maxEdge = 512, signal) {
+  let attrs;
+  try {
+    const z = await getJson(`${source}/zarr.json`);
+    attrs = z?.attributes ?? z;
+  } catch {
+    return null;
+  }
+  const conventions = attrs?.zarr_conventions ?? [];
+  const hasConvention = conventions.some(
+    (c) =>
+      c.uuid === "49326c01-1180-4743-b15f-f7157038a6ab" ||
+      c.name === "thumbnails" ||
+      c.schema_url?.includes("/thumbnails/") ||
+      c.spec_url?.includes("/thumbnails/"),
+  );
+  const thumbnails = attrs?.thumbnails;
+  if (!hasConvention || !thumbnails?.length) return null;
+
+  const fits = thumbnails.filter((t) => Math.max(t.width, t.height) <= maxEdge);
+  const pool = fits.length ? fits : thumbnails;
+  const best = pool.sort((a, b) => {
+    const aEdge = Math.max(a.width, a.height);
+    const bEdge = Math.max(b.width, b.height);
+    // Prefer larger when it fits under maxEdge, else smallest available.
+    if (aEdge !== bEdge) return fits.length ? bEdge - aEdge : aEdge - bEdge;
+    // Tie-break: JPEG over PNG.
+    return (
+      Number(b.media_type === "image/jpeg") -
+      Number(a.media_type === "image/jpeg")
+    );
+  })[0];
+
+  if (!best) return null;
+  return best.path ? `${source}/${best.path}` : best.url || null;
+}
+
 export function getRandomInt(max) {
   return Math.floor(Math.random() * max);
 }
