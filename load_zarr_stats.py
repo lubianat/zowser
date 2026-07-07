@@ -13,12 +13,11 @@ import requests
 import yaml
 import re
 
-
 # ────────────────────────────────────────────────────────────────────────────────
 # Logging configuration
 # ────────────────────────────────────────────────────────────────────────────────
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%H:%M:%S",
 )
@@ -170,8 +169,9 @@ def get_array_values(zarr_url, multiscales):
     return dict_data
 
 
-def load_rocrate(zarr_url):
-    rocrate_json = load_json(zarr_url + "/ro-crate-metadata.json")
+def probe_for_rocrate(zarr_url):
+    rocrate_url = zarr_url + "/ro-crate-metadata.json"
+    rocrate_json = load_json(rocrate_url)
 
     if len(rocrate_json) == 0:
         log.debug(f"Ro-Crate metadata not found.")
@@ -183,6 +183,11 @@ def load_rocrate(zarr_url):
             "organismId": "",
             "fbbiId": "",
         }
+
+    return rocrate_json
+
+
+def parse_rocrate(rocrate_json):
 
     rc_graph = rocrate_json.get("@graph", {})
     license = name = description = organismId = fbbiId = None
@@ -228,7 +233,7 @@ def load_series(zarr_url):
 def load_zarr(zarr_url, average_count=5):
     log.info(f"Loading Zarr: {zarr_url}")
 
-    # Assuming v0.5
+    # Assuming > v0.5
     response = load_json(zarr_url + "/zarr.json")
 
     if not response:
@@ -291,12 +296,46 @@ def load_zarr(zarr_url, average_count=5):
     else:
         log.warning("No recognized OME structure found in zarr.json")
 
-    rocrate_data = load_rocrate(zarr_url)
-    if len(rocrate_data) > 0:
-        stats.update({"rocrate_found": True})
-    else:
-        stats.update({"rocrate_found": False})
-    stats.update(rocrate_data)
+    zarr_conventions = response.get("attributes", {}).get("zarr_conventions", {})
+
+    rocrate_declared = False
+    if zarr_conventions:
+        for conv in zarr_conventions:
+            if conv.get("name") == "context":
+                # TODO: add support for checking uuid, schema and the like
+                log.debug("→ Detected the `context` convention, unknown version")
+
+                contextual_metadata = response.get("attributes", {}).get("context", {})
+
+                if contextual_metadata:
+                    for entry in contextual_metadata:
+                        if entry.get("href") == "ro-crate-metadata.json":
+                            rocrate_declared = True
+                            log.debug("→ Detected Ro-Crate metadata in context")
+                            rocrate_raw = load_json(
+                                zarr_url + "/ro-crate-metadata.json"
+                            )
+                            rocrate_data = parse_rocrate(rocrate_raw)
+
+                            if len(rocrate_data) > 0:
+                                stats.update({"rocrate_found": True})
+                            else:
+                                stats.update({"rocrate_found": False})
+
+                            stats.update(rocrate_data)
+
+    if not rocrate_declared:
+        log.debug("→ No Ro-Crate metadata declared in zarr_conventions")
+
+        # RO-Crate metadata may be present by convention, without explicit declaration (2024 NGFF challenge)
+        rocrate_raw = probe_for_rocrate(zarr_url)
+
+        rocrate_data = parse_rocrate(rocrate_raw)
+        if len(rocrate_data) > 0:
+            stats.update({"rocrate_found": True})
+        else:
+            stats.update({"rocrate_found": False})
+        stats.update(rocrate_data)
 
     stats["ome_zarr_kind"] = ome_zarr_kind
 
@@ -309,7 +348,7 @@ def load_zarr(zarr_url, average_count=5):
         log.error("Could not determine stats for this Zarr")
         stats = {}
 
-    stats.update(rocrate_data)
+    stats.update(rocrate_raw)
     log.debug(f"Final stats keys: {list(stats.keys())}")
     return stats
 
