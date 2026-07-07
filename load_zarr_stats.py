@@ -8,6 +8,7 @@ from pathlib import Path
 
 import math
 
+from xml.etree import ElementTree as ET
 
 import requests
 import yaml
@@ -79,6 +80,19 @@ def load_json(url: str):
         return resp.json()
     except (requests.exceptions.RequestException, json.decoder.JSONDecodeError) as e:
         log.warning(f"Failed to load JSON from {url}: {e}")
+        return {}
+
+
+def load_xml_as_dict(url):
+    try:
+        log.debug(f"Fetching XML: {url}")
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+
+        root = ET.fromstring(resp.content)
+        return {child.tag: child.text for child in root}
+    except (requests.exceptions.RequestException, ET.ParseError) as e:
+        log.warning(f"Failed to load XML from {url}: {e}")
         return {}
 
 
@@ -326,11 +340,15 @@ def load_zarr(zarr_url, average_count=5):
     zarr_conventions = response.get("attributes", {}).get("zarr_conventions", {})
 
     rocrate_declared = False
+
+    # RADAR is the KIT convention for https://radar.kit.edu/radar/en/search?query=antscan
+
+    radar_present = False
     if zarr_conventions:
         for conv in zarr_conventions:
             if conv.get("name") == "context":
                 # TODO: add support for checking uuid, schema and the like
-                log.debug("→ Detected the `context` convention, unknown version")
+                log.info("→ Detected the `context` convention, unknown version")
 
                 contextual_metadata = response.get("attributes", {}).get("context", {})
 
@@ -338,7 +356,7 @@ def load_zarr(zarr_url, average_count=5):
                     for entry in contextual_metadata:
                         if entry.get("href") == "ro-crate-metadata.json":
                             rocrate_declared = True
-                            log.debug("→ Detected Ro-Crate metadata in context")
+                            log.info("→ Detected Ro-Crate metadata in context")
                             rocrate_raw = load_json(
                                 zarr_url + "/ro-crate-metadata.json"
                             )
@@ -350,6 +368,13 @@ def load_zarr(zarr_url, average_count=5):
                                 stats.update({"rocrate_found": False})
 
                             stats.update(rocrate_data)
+
+                        if entry.get("href") == "dataset.desc_md.xml":
+                            radar_present = True
+                            log.info("→ Detected RADAR metadata in context")
+                            radar_raw = load_xml_as_dict(
+                                zarr_url + "/dataset.desc_md.xml"
+                            )
 
     if not rocrate_declared:
         log.debug("→ No Ro-Crate metadata declared in zarr_conventions")
