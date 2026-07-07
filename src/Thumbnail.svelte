@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import * as omezarr from "ome-zarr.js";
+  import { thumbnailFromConvention } from "./util.js";
 
   export let source;
   export let thumbAspectRatio = 1;
@@ -73,11 +74,19 @@
     }
   }
 
+  async function tryConvention() {
+    const url = await thumbnailFromConvention(source, max_size);
+    if (!url) return false;
+    mode = "cached";
+    showSpinner = false;
+    if (imgEl) imgEl.src = url;
+    return true;
+  }
+
   onMount(async () => {
-    const hasCached = await tryCachedFirst();
-    if (!hasCached) {
-      await loadWithOmeZarr();
-    }
+    if (await tryCachedFirst()) return;
+    if (await tryConvention()) return;
+    await loadWithOmeZarr();
   });
 
   onDestroy(() => controller.abort());
