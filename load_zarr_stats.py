@@ -8,17 +8,17 @@ from pathlib import Path
 
 import math
 
+from xml.etree import ElementTree as ET
 
 import requests
 import yaml
 import re
 
-
 # ────────────────────────────────────────────────────────────────────────────────
 # Logging configuration
 # ────────────────────────────────────────────────────────────────────────────────
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%H:%M:%S",
 )
@@ -83,6 +83,19 @@ def load_json(url: str):
         return {}
 
 
+def load_xml_as_dict(url):
+    try:
+        log.debug(f"Fetching XML: {url}")
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+
+        root = ET.fromstring(resp.content)
+        return {child.tag: child.text for child in root}
+    except (requests.exceptions.RequestException, ET.ParseError) as e:
+        log.warning(f"Failed to load XML from {url}: {e}")
+        return {}
+
+
 def format_bytes_human_readable(num_bytes):
     unit = None
     for u in ["B", "KB", "MB", "GB", "TB"]:
@@ -131,47 +144,75 @@ def get_chunk_and_shard_shapes(zarray):
 
 
 # Based on https://github.com/ome/ome-ngff-validator/blob/dfa175df9a20d9c2aaf576762472272fe393a3e8/src/JsonValidator/MultiscaleArrays/ZarrArray/index.svelte#L33
+# Simplified to only read the first level's zarr.json and estimate total bytes from scales, without fetching each level.
 def get_array_values(zarr_url, multiscales):
-    # we want chunks, shards, shape from first resolution level...
-    # but we want total 'written' bytes for all resolutions...
-    dict_data = {}
+    """
+    Read ONLY the first (full-resolution) dataset's zarr.json to get real
+    shape/chunks/shards/dtype, then estimate total pyramid bytes analytically
+    from the OME coordinateTransformations scales — no per-level fetches.
 
-    # Hardcode to use only the first multiscales
-    # See https://ngff.openmicroscopy.org/rfc/6/index.html
-    for ds in multiscales[0]["datasets"]:
+    Hard coded to OME-Zarr Version 0.5.
+    """
+    datasets = multiscales[0]["datasets"]
 
-        array_url = zarr_url + "/" + ds["path"]
-        array_json = load_json(array_url + "/zarr.json")
+    # --- fetch level 0 only ---
+    level0 = datasets[0]
+    array_url = zarr_url + "/" + level0["path"]
+    array_json = load_json(array_url + "/zarr.json")
 
-        if len(dict_data) == 0:
-            dict_data = get_chunk_and_shard_shapes(array_json)
-            dict_data["written"] = 0
+    dict_data = get_chunk_and_shard_shapes(array_json)
+    dict_data["dimension_names"] = array_json.get("dimension_names", "")
 
-        # Get dtype (v3: 'data_type', not supporting v2: 'dtype')
-        array_data_type = array_json["data_type"]
-        array_shape = array_json["shape"]
-        if "int" in array_data_type or "float" in array_data_type:
-            m = re.search(r"(\d+)", array_data_type)
-            if m:
-                bytes_per_pixel = int(m.group(1)) // 8
-            else:
-                # fallback for e.g. 'u1', 'i2', 'f4', etc.
-                for n in [1, 2, 4, 8]:
-                    if str(n) in array_data_type:
-                        bytes_per_pixel = n
-                        break
+    array_data_type = array_json["data_type"]  # v3 only
+    level0_shape = array_json["shape"]
 
-        pixels = math.prod(array_shape)
-        total_bytes = bytes_per_pixel * pixels
+    # bytes per pixel from dtype string (e.g. 'uint8', 'float32')
+    bytes_per_pixel = None
+    m = re.search(r"(\d+)", array_data_type)
+    if m:
+        bytes_per_pixel = int(m.group(1)) // 8
+    else:
+        for n in [1, 2, 4, 8]:
+            if str(n) in array_data_type:
+                bytes_per_pixel = n
+                break
+    if not bytes_per_pixel:
+        log.warning(
+            f"Could not infer bytes/pixel from dtype '{array_data_type}', assuming 1"
+        )
+        bytes_per_pixel = 1
 
-        dict_data["written"] = dict_data["written"] + total_bytes
-        dict_data["dimension_names"] = array_json.get("dimension_names", "")
+    level0_pixels = math.prod(level0_shape)
 
+    # --- base scale = level 0's scale (fallback to ones if absent) ---
+    def scale_of(ds):
+        for ct in ds.get("coordinateTransformations", []):
+            if ct.get("type") == "scale":
+                return ct.get("scale")
+        return None
+
+    base_scale = scale_of(level0) or [1.0] * len(level0_shape)
+
+    # --- estimate total pixels across all levels from scale ratios ---
+    total_pixels = 0.0
+    for ds in datasets:
+        s = scale_of(ds)
+        if s is None:
+            factor = 1.0  # unknown scale → assume same size as level 0
+        else:
+            # downsample factor per axis = this level's voxel size / level 0's
+            factor = math.prod(a / b for a, b in zip(s, base_scale) if b)
+        if factor <= 0:
+            factor = 1.0
+        total_pixels += level0_pixels / factor
+
+    dict_data["written"] = int(total_pixels * bytes_per_pixel)
     return dict_data
 
 
-def load_rocrate(zarr_url):
-    rocrate_json = load_json(zarr_url + "/ro-crate-metadata.json")
+def probe_for_rocrate(zarr_url):
+    rocrate_url = zarr_url + "/ro-crate-metadata.json"
+    rocrate_json = load_json(rocrate_url)
 
     if len(rocrate_json) == 0:
         log.debug(f"Ro-Crate metadata not found.")
@@ -183,6 +224,11 @@ def load_rocrate(zarr_url):
             "organismId": "",
             "fbbiId": "",
         }
+
+    return rocrate_json
+
+
+def parse_rocrate(rocrate_json):
 
     rc_graph = rocrate_json.get("@graph", {})
     license = name = description = organismId = fbbiId = None
@@ -228,7 +274,7 @@ def load_series(zarr_url):
 def load_zarr(zarr_url, average_count=5):
     log.info(f"Loading Zarr: {zarr_url}")
 
-    # Assuming v0.5
+    # Assuming > v0.5
     response = load_json(zarr_url + "/zarr.json")
 
     if not response:
@@ -291,12 +337,57 @@ def load_zarr(zarr_url, average_count=5):
     else:
         log.warning("No recognized OME structure found in zarr.json")
 
-    rocrate_data = load_rocrate(zarr_url)
-    if len(rocrate_data) > 0:
-        stats.update({"rocrate_found": True})
-    else:
-        stats.update({"rocrate_found": False})
-    stats.update(rocrate_data)
+    zarr_conventions = response.get("attributes", {}).get("zarr_conventions", {})
+
+    rocrate_declared = False
+
+    # RADAR is the KIT convention for https://radar.kit.edu/radar/en/search?query=antscan
+
+    radar_present = False
+    if zarr_conventions:
+        for conv in zarr_conventions:
+            if conv.get("name") == "context":
+                # TODO: add support for checking uuid, schema and the like
+                log.info("→ Detected the `context` convention, unknown version")
+
+                contextual_metadata = response.get("attributes", {}).get("context", {})
+
+                if contextual_metadata:
+                    for entry in contextual_metadata:
+                        if entry.get("href") == "ro-crate-metadata.json":
+                            rocrate_declared = True
+                            log.info("→ Detected Ro-Crate metadata in context")
+                            rocrate_raw = load_json(
+                                zarr_url + "/ro-crate-metadata.json"
+                            )
+                            rocrate_data = parse_rocrate(rocrate_raw)
+
+                            if len(rocrate_data) > 0:
+                                stats.update({"rocrate_found": True})
+                            else:
+                                stats.update({"rocrate_found": False})
+
+                            stats.update(rocrate_data)
+
+                        if entry.get("href") == "dataset.desc_md.xml":
+                            radar_present = True
+                            log.info("→ Detected RADAR metadata in context")
+                            radar_raw = load_xml_as_dict(
+                                zarr_url + "/dataset.desc_md.xml"
+                            )
+
+    if not rocrate_declared:
+        log.debug("→ No Ro-Crate metadata declared in zarr_conventions")
+
+        # RO-Crate metadata may be present by convention, without explicit declaration (2024 NGFF challenge)
+        rocrate_raw = probe_for_rocrate(zarr_url)
+
+        rocrate_data = parse_rocrate(rocrate_raw)
+        if len(rocrate_data) > 0:
+            stats.update({"rocrate_found": True})
+        else:
+            stats.update({"rocrate_found": False})
+        stats.update(rocrate_data)
 
     stats["ome_zarr_kind"] = ome_zarr_kind
 
@@ -309,7 +400,7 @@ def load_zarr(zarr_url, average_count=5):
         log.error("Could not determine stats for this Zarr")
         stats = {}
 
-    stats.update(rocrate_data)
+    stats.update(rocrate_raw)
     log.debug(f"Final stats keys: {list(stats.keys())}")
     return stats
 
