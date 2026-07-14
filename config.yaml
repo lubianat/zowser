@@ -24,6 +24,9 @@ samples:
   - https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.5/idr0157/Asterella gracilis SWE/IMG_1033-1112 Asterella gracilis (Mannia gracilis) stature.ome.zarr
   - https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.5/idr0051/180712_H2B_22ss_Courtney1_20180712-163837_p00_c00_preview.zarr
   - https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.5/idr0083/9822152.zarr
+  - https://huggingface.co/buckets/tiagolubiana/antscan/resolve/CASENT0744760.zarr
+  - https://huggingface.co/buckets/tiagolubiana/antscan/resolve/sharded-CASENT0744760.zarr
+
 
 extended_samples:
   - name: antscan sample
